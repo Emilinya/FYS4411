@@ -9,29 +9,22 @@ template <size_t d>
 class Particle
 {
 public:
-    Particle()
-    {
-        diameter_ = 0;
-    }
+    Particle() {}
 
-    Particle(double diameter, const std::array<double, d> &position)
+    Particle(const std::array<double, d> &position)
     {
-        assert(diameter >= 0);
-
-        diameter_ = diameter;
         position_ = position;
     }
 
-    void adjustPosition(double change, size_t dimension);
+    inline void adjustPosition(double change, size_t dimension);
+    double squareDistanceTo(const Particle<d> &other) const;
     double distanceTo(const Particle<d> &other) const;
 
     inline const std::array<double, d> &getPosition() const { return position_; }
-    inline double getDiameter() const { return diameter_; }
     inline double getSquaredDistance() const;
 
 private:
     std::array<double, d> position_;
-    double diameter_;
 };
 
 template <size_t d>
@@ -43,7 +36,7 @@ void Particle<d>::adjustPosition(double change, size_t dimension)
 template <size_t d>
 inline double Particle<d>::getSquaredDistance() const
 {
-    double sum;
+    double sum = 0;
     for (size_t i = 0; i < d; i++)
     {
         sum += position_[i] * position_[i];
@@ -52,13 +45,19 @@ inline double Particle<d>::getSquaredDistance() const
 }
 
 template <size_t d>
-double Particle<d>::distanceTo(const Particle<d> &other) const
+double Particle<d>::squareDistanceTo(const Particle<d> &other) const
 {
-    double sum;
+    double sum = 0;
     for (size_t i = 0; i < d; i++)
     {
         double between = position_[i] - other.getPosition()[i];
         sum += between * between;
     }
-    return std::sqrt(sum);
+    return sum;
+}
+
+template <size_t d>
+double Particle<d>::distanceTo(const Particle<d> &other) const
+{
+    return std::sqrt(squareDistanceTo(other));
 }

@@ -17,41 +17,38 @@ public:
         this->parameters_ = {alpha};
     }
 
-    double evaluate(const ParticleRay<N, d> &particles);
-    double computeLaplacian(const ParticleRay<N, d> &particles);
-    double computeLocalEnergy(const ParticleRay<N, d> &particles);
-    QForceMat<N, d> computeQForce(const ParticleRay<N, d> &particles);
+    double evaluate(const ParticleSystem<N, d> &particleSystem) const;
+    double computeLaplacian(const ParticleSystem<N, d> &particleSystem) const;
+    double computeLocalEnergy(const ParticleSystem<N, d> &particleSystem) const;
+    QForceMat<N, d> computeQForce(const ParticleSystem<N, d> &particleSystem) const;
 
 private:
     double alpha_ = 0;
 };
 
 template <size_t N, size_t d>
-double SphericalWF<N, d>::evaluate(const ParticleRay<N, d> &particles)
+double SphericalWF<N, d>::evaluate(const ParticleSystem<N, d> &particleSystem) const
 {
-    if (N == 1)
+    double g_prod = std::exp(-alpha_ * particleSystem.getSquareSum());
+    double a = particleSystem.getDiameter();
+
+    if (a == 0)
     {
-        return exp(-alpha_ * particles[0].getSquaredDistance());
+        // a = 0, we don't need to worry about interactions
+        return g_prod;
     }
 
-    double g_prod;
-    double f_prod;
+    double f_prod = 1;
 
     for (size_t i = 0; i < N; i++)
     {
-        g_prod *= exp(-alpha_ * particles[i].getSquaredDistance());
-
-        double ai = particles[i].getDiameter();
         for (size_t j = i + 1; j < N; j++)
         {
-            double aj = particles[j].getDiameter();
+            double dist2 = particleSystem[i].squareDistanceTo(particleSystem[j]);
 
-            double dist = particles[i].distanceTo(particles[j]);
-            double a = 0.5 * (ai + aj);
-
-            if (dist > a)
+            if (dist2 > a * a)
             {
-                f_prod *= 1 - a / dist;
+                f_prod *= 1 - a / std::sqrt(dist2);
             }
             else
             {
@@ -65,48 +62,37 @@ double SphericalWF<N, d>::evaluate(const ParticleRay<N, d> &particles)
 }
 
 template <size_t N, size_t d>
-double SphericalWF<N, d>::computeLaplacian(const ParticleRay<N, d> &particles)
+double SphericalWF<N, d>::computeLaplacian(const ParticleSystem<N, d> &particleSystem) const
 {
-    double sum = 0;
-    for (size_t i = 0; i < N; i++)
-    {
-        double t1 = 4 * alpha_ * alpha_ * particles[i].getSquaredDistance();
-        double t2 = -2 * alpha_ * (double)d;
-        sum += t1 + t2;
-    }
+    double const1 = -2. * alpha_ * (double)(d * N);
+    double const2 = 4 * alpha_ * alpha_;
 
-    return sum / evaluate(particles);
+    double distSum = particleSystem.getSquareSum();
+
+    return (const1 + const2 * distSum) * evaluate(particleSystem);
 }
 
 template <size_t N, size_t d>
-double SphericalWF<N, d>::computeLocalEnergy(const ParticleRay<N, d> &particles)
+double SphericalWF<N, d>::computeLocalEnergy(const ParticleSystem<N, d> &particleSystem) const
 {
-    double hbar = 1;
     double m = 1;
     double omega = 1;
 
-    double h2m = hbar * hbar / m;
-    double mw2 = m * omega * omega;
+    double const1 = alpha_ * (double)(d * N) / m;
+    double const2 = 0.5 * m * omega * omega - 2. * alpha_ * alpha_ / m;
 
-    double sum = 0;
-    for (auto &particle : particles)
-    {
-        double r2 = particle.getSquaredDistance();
-        double t1 = h2m * ((double)d * alpha_ - 2 * alpha_ * alpha_ * r2);
-        double t2 = 0.5 * mw2  * r2;
-        sum += t1 + t2;
-    }
+    double distSum = particleSystem.getSquareSum();
 
-    return sum;
+    return const1 + const2 * distSum;
 }
 
 template <size_t N, size_t d>
-QForceMat<N, d> SphericalWF<N, d>::computeQForce(const ParticleRay<N, d> &particles)
+QForceMat<N, d> SphericalWF<N, d>::computeQForce(const ParticleSystem<N, d> &particleSystem) const
 {
     QForceMat<N, d> qForceMat;
     for (size_t i = 0; i < N; i++)
     {
-        auto pos = particles[i].getPosition();
+        auto pos = particleSystem[i].getPosition();
         for (size_t j = 0; j < d; j++)
         {
             qForceMat[i][j] = -4 * alpha_ * pos[j];
