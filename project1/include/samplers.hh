@@ -14,7 +14,7 @@ void metSampler(
     std::vector<double> &alphaVec, double stepSize, size_t mcCycleCount,
     size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount;
+    size_t trueCycleCount = mcCycleCount / sqrt(N);
     size_t burnCycleCount = trueCycleCount / 100;
 
     double mass = 1;
@@ -23,6 +23,7 @@ void metSampler(
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
     std::ofstream dataFile;
+    dataFile.precision(14);
     dataFile.open(filename);
     for (size_t i = 0; i < alphaVec.size(); i++)
     {
@@ -40,7 +41,7 @@ void metSampler(
 template <size_t N, size_t d>
 double calibrateStepSize(double alpha, double analVal, size_t mcCycleCount, size_t walkerCount)
 {
-    size_t trueCycleCount = mcCycleCount;
+    size_t trueCycleCount = mcCycleCount / sqrt(N);
     size_t burnCycleCount = trueCycleCount / 100;
     double initialStepSize = 0.5;
 
@@ -155,7 +156,7 @@ void methasSampler(
     std::vector<double> &alphaVec, double timeStep, size_t mcCycleCount,
     size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount;
+    size_t trueCycleCount = mcCycleCount / sqrt(N);
     size_t burnCycleCount = trueCycleCount / 100;
 
     double mass = 1;
@@ -164,6 +165,7 @@ void methasSampler(
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
     std::ofstream dataFile;
+    dataFile.precision(14);
     dataFile.open(filename);
     for (size_t i = 0; i < alphaVec.size(); i++)
     {
