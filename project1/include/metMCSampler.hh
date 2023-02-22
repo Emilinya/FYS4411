@@ -11,33 +11,29 @@
 #include "SphericalWF.hh"
 
 // Monte Carlo sampling with the Metropolis algorithm
-template <size_t N, size_t d>
+template <size_t N, class WFClass>
 double metMonteCarloStep(
-    double stepSize, ParticleSystem<N, d> &stateOld, double &wfOld, const WaveFunction<N, d> &waveFunction, Random &random)
+    double stepSize, WFClass &waveFunctionOld, Random &random)
 {
-    ParticleSystem<N, d> stateNew = stateOld;
-    // Trial position moving one particle at the time
+    WFClass waveFunctionNew = waveFunctionOld;
+    double wfOld = waveFunctionOld.evaluate();
+
     for (size_t i = 0; i < N; i++)
     {
-        for (size_t j = 0; j < d; j++)
-        {
-            double rndStep = stepSize * (random.nextDouble(0, 1) - 0.5);
-            stateNew.adjustPostitionAt(i, rndStep, j);
-        }
+        waveFunctionNew.pertubateState(i, stepSize, random);
 
-        double wfNew = waveFunction.evaluate(stateNew);
-
+        double wfNew = waveFunctionNew.evaluate();
         double probabilityRatio = (wfNew * wfNew) / (wfOld * wfOld);
 
         // Metropolis-Hastings test to see whether we accept the move
-        if (random.nextDouble(0, 1) <= probabilityRatio)
+        if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
         {
-            stateOld.setAt(i, stateNew[i]);
+            waveFunctionOld.updateFrom(waveFunctionNew, i);
             wfOld = wfNew;
         }
     }
 
-    return waveFunction.computeLocalEnergy(stateOld);
+    return waveFunctionOld.computeLocalEnergy();
 }
 
 template <size_t N, size_t d, class WFClass>
@@ -55,18 +51,18 @@ std::tuple<double, double> metMonteCarloSampler(
         ParticleSystem<N, d> state(diameter, mass, stateSize);
 
         double energy = 0.0;
-        WFClass waveFunction(alpha);
-        double wf = waveFunction.evaluate(state);
+        WFClass waveFunction(alpha, WFMode::MET);
+        waveFunction.setState(state);
 
         // burn some samples
         for (size_t i = 0; i < burnCycleCount; i++)
         {
-            metMonteCarloStep(stepSize, state, wf, waveFunction, random);
+            metMonteCarloStep<N, WFClass>(stepSize, waveFunction, random);
         }
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
-            double deltaE = metMonteCarloStep(stepSize, state, wf, waveFunction, random);
+            double deltaE = metMonteCarloStep<N, WFClass>(stepSize, waveFunction, random);
 
             energy += deltaE;
         }

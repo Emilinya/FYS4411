@@ -56,11 +56,6 @@ public:
         particles_[idx] = other;
     }
 
-    inline void adjustPostitionAt(size_t idx, double change, size_t dimension)
-    {
-        particles_[idx].adjustPosition(change, dimension);
-    }
-
     inline const Particle<d> &operator[](size_t idx) const
     {
         return particles_[idx];

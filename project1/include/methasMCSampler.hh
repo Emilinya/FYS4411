@@ -10,17 +10,22 @@
 #include "WaveFunction.hh"
 #include "SphericalWF.hh"
 
-template <size_t d>
-double calcGreensFunction(
-    double D, double timeStep,
-    const std::array<double, d> &qForceOld, const std::array<double, d> &qForceNew,
-    const std::array<double, d> &posOld, const std::array<double, d> &posNew)
+template <size_t N, size_t d>
+double calcGreensFunction(double timeStep, size_t idx, WaveFunction<N, d> &waveFunctionOld, WaveFunction<N, d> &waveFunctionNew)
 {
+    const double D = 0.5; // Diffusion constant, 1/2 in atomic units
+
+    QForceMat<N, d> &qForceOld = waveFunctionOld.computeQForce();
+    QForceMat<N, d> &qForceNew = waveFunctionNew.computeQForce();
+
+    const std::array<double, d> &posOld = waveFunctionOld.getState()[idx].getPosition();
+    const std::array<double, d> &posNew = waveFunctionNew.getState()[idx].getPosition();
+
     double expTerm = 0.0;
     for (size_t j = 0; j < d; j++)
     {
-        double factor = 0.5 * (qForceOld[j] + qForceNew[j]);
-        double term1 = 0.5 * D * timeStep * (qForceOld[j] - qForceNew[j]);
+        double factor = 0.5 * (qForceOld[idx][j] + qForceNew[idx][j]);
+        double term1 = 0.5 * D * timeStep * (qForceOld[idx][j] - qForceNew[idx][j]);
         double term2 = posNew[j] + posOld[j];
         expTerm += factor * (term1 - term2);
     }
@@ -29,42 +34,31 @@ double calcGreensFunction(
 }
 
 // Monte Carlo sampling with the Metropolis-Hastings algorithm
-template <size_t N, size_t d>
+template <size_t N, size_t d, class WFClass>
 double methasMonteCarloStep(
-    double timeStep, ParticleSystem<N, d> &stateOld, QForceMat<N, d> &qForceOld,
-    double &wfOld, const WaveFunction<N, d> &waveFunction, Random &random)
+    double timeStep, WFClass &waveFunctionOld, Random &random)
 {
-    const double D = 0.5;  // Diffusion constant, =1/2 in atomic units 
+    double wfOld = waveFunctionOld.evaluate();
+    WFClass waveFunctionNew = waveFunctionOld;
 
-    ParticleSystem<N, d> stateNew = stateOld;
     // Trial position moving one particle at the time
     for (size_t i = 0; i < N; i++)
     {
-        for (size_t j = 0; j < d; j++)
-        {
-            double rndStep = random.nextGaussian(0.0, 1.0) * sqrt(timeStep);
-            double qForce = qForceOld[i][j] * timeStep * D;
-            stateNew.adjustPostitionAt(i, rndStep + qForce, j);
-        }
+        waveFunctionNew.pertubateState(i, timeStep, random);
+        double wfNew = waveFunctionNew.evaluate();
 
-        double wfNew = waveFunction.evaluate(stateNew);
-        QForceMat<N, d> qForceNew = waveFunction.computeQForce(stateNew);
-
-        double greensFunction = calcGreensFunction<d>(
-            D, timeStep, qForceOld[i], qForceNew[i],
-            stateOld[i].getPosition(), stateNew[i].getPosition());
+        double greensFunction = calcGreensFunction<N, d>(timeStep, i, waveFunctionOld, waveFunctionNew);
         double probabilityRatio = greensFunction * (wfNew * wfNew) / (wfOld * wfOld);
 
         // Metropolis-Hastings test to see whether we accept the move
-        if (random.nextDouble(0, 1) <= probabilityRatio)
+        if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
         {
-            stateOld.setAt(i, stateNew[i]);
-            qForceOld[i] = qForceNew[i];
+            waveFunctionOld.updateFrom(waveFunctionNew, i);
             wfOld = wfNew;
         }
     }
 
-    return waveFunction.computeLocalEnergy(stateOld);
+    return waveFunctionOld.computeLocalEnergy();
 }
 
 template <size_t N, size_t d, class WFClass>
@@ -82,19 +76,18 @@ std::tuple<double, double> methasMonteCarloSampler(
         ParticleSystem<N, d> state(diameter, mass, stateSize);
 
         double energy = 0.0;
-        WFClass waveFunction(alpha);
-        double wf = waveFunction.evaluate(state);
-        QForceMat<N, d> qForce = waveFunction.computeQForce(state);
+        WFClass waveFunction(alpha, WFMode::METHAS);
+        waveFunction.setState(state);
 
         // burn some samples
         for (size_t i = 0; i < burnCycleCount; i++)
         {
-            methasMonteCarloStep(timeStep, state, qForce, wf, waveFunction, random);
+            methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
         }
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
-            double deltaE = methasMonteCarloStep(timeStep, state, qForce, wf, waveFunction, random);
+            double deltaE = methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
 
             energy += deltaE;
         }
