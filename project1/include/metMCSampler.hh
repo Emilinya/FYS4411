@@ -16,12 +16,12 @@ double metMonteCarloStep(
     double stepSize, WFClass &waveFunctionOld, Random &random)
 {
     WFClass waveFunctionNew = waveFunctionOld;
-    double wfOld = waveFunctionOld.evaluate();
 
     for (size_t i = 0; i < N; i++)
     {
         waveFunctionNew.pertubateState(i, stepSize, random);
 
+        double wfOld = waveFunctionOld.evaluate();
         double wfNew = waveFunctionNew.evaluate();
         double probabilityRatio = (wfNew * wfNew) / (wfOld * wfOld);
 
@@ -29,7 +29,8 @@ double metMonteCarloStep(
         if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
         {
             waveFunctionOld.updateFrom(waveFunctionNew, i);
-            wfOld = wfNew;
+        } else {
+            waveFunctionNew.updateFrom(waveFunctionOld, i);
         }
     }
 

@@ -38,13 +38,14 @@ template <size_t N, size_t d, class WFClass>
 double methasMonteCarloStep(
     double timeStep, WFClass &waveFunctionOld, Random &random)
 {
-    double wfOld = waveFunctionOld.evaluate();
     WFClass waveFunctionNew = waveFunctionOld;
 
     // Trial position moving one particle at the time
     for (size_t i = 0; i < N; i++)
     {
         waveFunctionNew.pertubateState(i, timeStep, random);
+        
+        double wfOld = waveFunctionOld.evaluate();
         double wfNew = waveFunctionNew.evaluate();
 
         double greensFunction = calcGreensFunction<N, d>(timeStep, i, waveFunctionOld, waveFunctionNew);
@@ -54,7 +55,8 @@ double methasMonteCarloStep(
         if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
         {
             waveFunctionOld.updateFrom(waveFunctionNew, i);
-            wfOld = wfNew;
+        } else {
+            waveFunctionNew.updateFrom(waveFunctionOld, i);
         }
     }
 
@@ -78,6 +80,9 @@ std::tuple<double, double> methasMonteCarloSampler(
         double energy = 0.0;
         WFClass waveFunction(alpha, WFMode::METHAS);
         waveFunction.setState(state);
+
+        // evaluate once so value is copied to the wave function copy
+        waveFunction.evaluate();
 
         // burn some samples
         for (size_t i = 0; i < burnCycleCount; i++)

@@ -119,10 +119,7 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
 
     thisState.setAt(idx, otherState[idx]);
 
-    double prevValue = evaluate();
-    double distDiff = otherState[idx].getSquaredDistance() - thisState[idx].getSquaredDistance();
-    this->value_ = prevValue * std::exp(-alpha_ * distDiff);
-
+    this->value_ = waveFunction.getValue();
     this->localEnergy_.reset();
 
     if (this->mode_ == WFMode::METHAS) {
@@ -167,7 +164,8 @@ double SphericalWF<N, d>::evaluate()
     if (a == 0)
     {
         // a = 0, we don't need to worry about interactions
-        return g_prod;
+        this->value_ = g_prod;
+        this->value_.value();
     }
 
     double f_prod = 1;
