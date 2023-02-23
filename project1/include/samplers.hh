@@ -10,6 +10,35 @@
 #include "utils.hh"
 
 template <size_t N, size_t d>
+void methasSampler(
+    std::vector<double> &alphaVec, double timeStep, size_t mcCycleCount,
+    size_t walkerCount, std::string filename)
+{
+    size_t trueCycleCount = mcCycleCount / sqrt(N);
+    size_t burnCycleCount = trueCycleCount / 100;
+
+    double mass = 1;
+    double diameter = 0;
+    double stateSize = 1;
+
+    std::cout << "N=" << N << ", d=" << d << std::endl;
+    std::ofstream dataFile;
+    dataFile.precision(14);
+    dataFile.open(filename);
+    for (size_t i = 0; i < alphaVec.size(); i++)
+    {
+        rprint("  " << i + 1 << "/" << alphaVec.size());
+
+        auto [energy, std] = methasMonteCarloSampler<N, d, SphericalWF<N, d>>(
+            timeStep, trueCycleCount, burnCycleCount, walkerCount, diameter, mass, stateSize, alphaVec[i]);
+
+        dataFile << alphaVec[i] << " " << energy << " " << std << "\n";
+    }
+    std::cout << std::endl;
+    dataFile.close();
+}
+
+template <size_t N, size_t d>
 void metSampler(
     std::vector<double> &alphaVec, double stepSize, size_t mcCycleCount,
     size_t walkerCount, std::string filename)
@@ -149,33 +178,4 @@ double calibrateStepSize(double alpha, double analVal, size_t mcCycleCount, size
     print(mid, midDiff);
 
     return mid;
-}
-
-template <size_t N, size_t d>
-void methasSampler(
-    std::vector<double> &alphaVec, double timeStep, size_t mcCycleCount,
-    size_t walkerCount, std::string filename)
-{
-    size_t trueCycleCount = mcCycleCount / sqrt(N);
-    size_t burnCycleCount = trueCycleCount / 100;
-
-    double mass = 1;
-    double diameter = 0;
-    double stateSize = 1;
-
-    std::cout << "N=" << N << ", d=" << d << std::endl;
-    std::ofstream dataFile;
-    dataFile.precision(14);
-    dataFile.open(filename);
-    for (size_t i = 0; i < alphaVec.size(); i++)
-    {
-        rprint("  " << i + 1 << "/" << alphaVec.size());
-
-        auto [energy, std] = methasMonteCarloSampler<N, d, SphericalWF<N, d>>(
-            timeStep, trueCycleCount, burnCycleCount, walkerCount, diameter, mass, stateSize, alphaVec[i]);
-
-        dataFile << alphaVec[i] << " " << energy << " " << std << "\n";
-    }
-    std::cout << std::endl;
-    dataFile.close();
 }

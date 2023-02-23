@@ -28,7 +28,7 @@ void methasMultiSampler(std::vector<double> &alphaVec, double timeStep, size_t m
 int main()
 {
     std::vector<double> alphaVec = linspace(0.25, 0.75, 51);
-    size_t mcCycleCount = 1e4;
+    size_t mcCycleCount = 5e5;
     size_t walkerCount = 8;
 
     // calibrateStepSize<100, 1>(0.4, 5.125 * 10, 1e7, 8);
@@ -37,11 +37,15 @@ int main()
     
     double optimalStepSize = 0.1;
     metMultiSampler<1>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
-    // metMultiSampler<2>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
-    // metMultiSampler<3>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
+    metMultiSampler<2>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
+    metMultiSampler<3>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
 
     double optimalTimeStep = 0.005;
     methasMultiSampler<1>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
+    methasMultiSampler<2>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
+    methasMultiSampler<3>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
+
+    // methasSampler<100, 1>(alphaVec, optimalTimeStep, 1e4, walkerCount, "data/temp.dat");
 
     return 0;
 }
