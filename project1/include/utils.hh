@@ -8,8 +8,23 @@
 template <size_t N, size_t d>
 using QForceMat = std::array<std::array<double, d>, N>;
 
+struct MCStepOut
+{
+    double E;
+    std::vector<double> logGrad;
+};
+
+struct MCSamplerOut
+{
+    double E;
+    double stdE;
+    std::vector<double> logGrad;
+    std::vector<double> stdLogGrad;
+};
+
 template <size_t d>
-void printRay(std::array<double, d> &array) {
+void printRay(std::array<double, d> &array)
+{
     if (d==0) {
         std::cout << "()\n";
     }
@@ -54,6 +69,56 @@ std::tuple<double, double> calcMeanStd(std::vector<double> &vals)
     std = std::sqrt(std / (double)vals.size());
 
     return {mean, std};
+}
+
+// function to calculate mean and std of a vector of vectors
+std::tuple<std::vector<double>, std::vector<double>>
+vectorCalcMeanStd(const std::vector<std::vector<double>> &vals)
+{
+    size_t outerN = vals.size();
+    size_t innerN = vals[0].size();
+
+    std::vector<double> means;
+    means.resize(innerN);
+
+    std::vector<double> stds;
+    stds.resize(innerN);
+
+    for (size_t i = 0; i < innerN; i++)
+    {
+        means[i] = 0;
+        stds[i] = 0;
+    }
+    
+
+    for (size_t i = 0; i < outerN; i++)
+    {
+        for (size_t j = 0; j < innerN; j++)
+        {
+            means[j] += vals[i][j];
+        }
+    }
+
+    for (size_t j = 0; j < innerN; j++)
+    {
+        means[j] = means[j] / outerN;
+    }
+
+    for (size_t i = 0; i < outerN; i++)
+    {
+        for (size_t j = 0; j < innerN; j++)
+        {
+            double diff = (vals[i][j] - means[j]);
+            stds[j] += diff * diff;
+        }
+    }
+
+    for (size_t i = 0; i < innerN; i++)
+    {
+        stds[i] = std::sqrt(stds[i] / (double)outerN);
+    }
+
+    return {means, stds};
 }
 
 // the following functions define a print function that acts like python's print

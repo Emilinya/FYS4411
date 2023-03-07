@@ -12,7 +12,7 @@
 
 // Monte Carlo sampling with the Metropolis algorithm
 template <size_t N, class WFClass>
-double metMonteCarloStep(
+MCStepOut metMonteCarloStep(
     double stepSize, WFClass &waveFunctionOld, Random &random)
 {
     WFClass waveFunctionNew = waveFunctionOld;
@@ -34,16 +34,38 @@ double metMonteCarloStep(
         }
     }
 
-    return waveFunctionOld.computeLocalEnergy();
+    return {
+        waveFunctionOld.computeLocalEnergy(),
+        waveFunctionOld.computeLogGrad(),
+    };
 }
 
 template <size_t N, size_t d, class WFClass>
-std::tuple<double, double> metMonteCarloSampler(
+MCSamplerOut metMonteCarloSampler(
     double stepSize, size_t mcCycleCount, size_t burnCycleCount,
     size_t walkerCount, double diameter, double mass, double stateSize, double alpha)
 {
     std::vector<double> energies;
+    std::vector<std::vector<double>> gradMuls;
+    std::vector<std::vector<double>> gradients;
+
     energies.resize(walkerCount);
+    gradMuls.resize(walkerCount);
+    gradients.resize(walkerCount);
+
+    for (size_t i = 0; i < walkerCount; i++)
+    {
+        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
+        {
+            gradients[i] = {0};
+            gradMuls[i] = {0};
+        }
+        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+        {
+            gradients[i] = {0, 0};
+            gradMuls[i] = {0, 0};
+        }
+    }
 
     #pragma omp parallel for
     for (size_t i = 0; i < walkerCount; i++)
@@ -52,24 +74,72 @@ std::tuple<double, double> metMonteCarloSampler(
         ParticleSystem<N, d> state(diameter, mass, stateSize);
 
         double energy = 0.0;
+        std::vector<double> gradMul;
+        std::vector<double> gradient;
+
+        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
+        {
+            gradMul = {0};
+            gradient = {0};
+        }
+        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+        {
+            gradMul = {0, 0};
+            gradient = {0, 0};
+        }
+
         WFClass waveFunction(alpha, WFMode::MET);
         waveFunction.setState(state);
 
+        // evaluate once so value is copied to the wave function copy
+        waveFunction.evaluate();
+
         // burn some samples
-        for (size_t i = 0; i < burnCycleCount; i++)
+        for (size_t mcCycle = 0; mcCycle < burnCycleCount; mcCycle++)
         {
             metMonteCarloStep<N, WFClass>(stepSize, waveFunction, random);
         }
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
-            double deltaE = metMonteCarloStep<N, WFClass>(stepSize, waveFunction, random);
+            MCStepOut out = metMonteCarloStep<N, WFClass>(stepSize, waveFunction, random);
 
-            energy += deltaE;
+            energy += out.E;
+            for (size_t j = 0; j < out.logGrad.size(); j++)
+            {
+                gradient[j] += out.logGrad[j];
+                gradMul[j] += out.E * out.logGrad[j];
+            }
         }
 
         energies[i] = energy / mcCycleCount;
+
+        for (size_t j = 0; j < gradient.size(); j++)
+        {
+            gradMuls[i][j] = gradMul[j] / mcCycleCount;
+            gradients[i][j] = gradient[j] / mcCycleCount;
+        }
     }
 
-    return calcMeanStd(energies);
+    std::vector<std::vector<double>> energyGrads;
+    energyGrads.resize(walkerCount);
+
+    for (size_t i = 0; i < walkerCount; i++)
+    {
+        energyGrads[i].resize(gradients[0].size());
+        for (size_t j = 0; j < gradients[0].size(); j++)
+        {
+            energyGrads[i][j] = 2 * (gradMuls[i][j] - gradients[i][j] * energies[i]);
+        }
+    }
+
+    auto energyTouple = calcMeanStd(energies);
+    auto gradTouple = vectorCalcMeanStd(energyGrads);
+
+    return {
+        std::get<0>(energyTouple),
+        std::get<1>(energyTouple),
+        std::get<0>(gradTouple),
+        std::get<1>(gradTouple),
+    };
 }

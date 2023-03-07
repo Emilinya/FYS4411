@@ -29,10 +29,11 @@ void methasSampler(
     {
         rprint("  " << i + 1 << "/" << alphaVec.size());
 
-        auto [energy, std] = methasMonteCarloSampler<N, d, SphericalWF<N, d>>(
+        MCSamplerOut out = methasMonteCarloSampler<N, d, SphericalWF<N, d>>(
             timeStep, trueCycleCount, burnCycleCount, walkerCount, diameter, mass, stateSize, alphaVec[i]);
 
-        dataFile << alphaVec[i] << " " << energy << " " << std << "\n";
+        dataFile << alphaVec[i] << " " << out.E << " " << out.stdE << " ";
+        dataFile << out.logGrad[0] << " " << out.stdLogGrad[0] << "\n";
     }
     std::cout << std::endl;
     dataFile.close();
@@ -58,10 +59,11 @@ void metSampler(
     {
         rprint("  " << i + 1 << "/" << alphaVec.size());
 
-        auto [energy, std] = metMonteCarloSampler<N, d, SphericalWF<N, d>>(
+        MCSamplerOut out = metMonteCarloSampler<N, d, SphericalWF<N, d>>(
             stepSize, trueCycleCount, burnCycleCount, walkerCount, diameter, mass, stateSize, alphaVec[i]);
 
-        dataFile << alphaVec[i] << " " << energy << " " << std << "\n";
+        dataFile << alphaVec[i] << " " << out.E << " " << out.stdE << " ";
+        dataFile << out.logGrad[0] << " " << out.stdLogGrad[0] << "\n";
     }
     std::cout << std::endl;
     dataFile.close();

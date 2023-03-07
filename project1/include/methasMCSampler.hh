@@ -35,7 +35,7 @@ double calcGreensFunction(double timeStep, size_t idx, WaveFunction<N, d> &waveF
 
 // Monte Carlo sampling with the Metropolis-Hastings algorithm
 template <size_t N, size_t d, class WFClass>
-double methasMonteCarloStep(
+MCStepOut methasMonteCarloStep(
     double timeStep, WFClass &waveFunctionOld, Random &random)
 {
     WFClass waveFunctionNew = waveFunctionOld;
@@ -44,7 +44,7 @@ double methasMonteCarloStep(
     for (size_t i = 0; i < N; i++)
     {
         waveFunctionNew.pertubateState(i, timeStep, random);
-        
+
         double wfOld = waveFunctionOld.evaluate();
         double wfNew = waveFunctionNew.evaluate();
 
@@ -55,29 +55,67 @@ double methasMonteCarloStep(
         if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
         {
             waveFunctionOld.updateFrom(waveFunctionNew, i);
-        } else {
+        }
+        else
+        {
             waveFunctionNew.updateFrom(waveFunctionOld, i);
         }
     }
 
-    return waveFunctionOld.computeLocalEnergy();
+    return {
+        waveFunctionOld.computeLocalEnergy(),
+        waveFunctionOld.computeLogGrad(),
+    };
 }
 
 template <size_t N, size_t d, class WFClass>
-std::tuple<double, double> methasMonteCarloSampler(
+MCSamplerOut methasMonteCarloSampler(
     double timeStep, size_t mcCycleCount, size_t burnCycleCount,
-    size_t walker_count, double diameter, double mass, double stateSize, double alpha)
+    size_t walkerCount, double diameter, double mass, double stateSize, double alpha)
 {
     std::vector<double> energies;
-    energies.resize(walker_count);
+    std::vector<std::vector<double>> gradMuls;
+    std::vector<std::vector<double>> gradients;
 
-    # pragma omp parallel for
-    for (size_t i = 0; i < walker_count; i++)
+    energies.resize(walkerCount);
+    gradMuls.resize(walkerCount);
+    gradients.resize(walkerCount);
+
+    for (size_t i = 0; i < walkerCount; i++)
+    {
+        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
+        {
+            gradients[i] = {0};
+            gradMuls[i] = {0};
+        }
+        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+        {
+            gradients[i] = {0, 0};
+            gradMuls[i] = {0, 0};
+        }
+    }
+
+    #pragma omp parallel for
+    for (size_t i = 0; i < walkerCount; i++)
     {
         Random random;
         ParticleSystem<N, d> state(diameter, mass, stateSize);
 
         double energy = 0.0;
+        std::vector<double> gradMul;
+        std::vector<double> gradient;
+
+        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
+        {
+            gradMul = {0};
+            gradient = {0};
+        }
+        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+        {
+            gradMul = {0, 0};
+            gradient = {0, 0};
+        }
+
         WFClass waveFunction(alpha, WFMode::METHAS);
         waveFunction.setState(state);
 
@@ -85,56 +123,51 @@ std::tuple<double, double> methasMonteCarloSampler(
         waveFunction.evaluate();
 
         // burn some samples
-        for (size_t i = 0; i < burnCycleCount; i++)
+        for (size_t mcCycle = 0; mcCycle < burnCycleCount; mcCycle++)
         {
             methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
         }
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
-            double deltaE = methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
+            MCStepOut out = methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
 
-            energy += deltaE;
+            energy += out.E;
+            for (size_t j = 0; j < out.logGrad.size(); j++)
+            {
+                gradient[j] += out.logGrad[j];
+                gradMul[j] += out.E * out.logGrad[j];
+            }
         }
 
         energies[i] = energy / mcCycleCount;
+
+        for (size_t j = 0; j < gradient.size(); j++)
+        {
+            gradMuls[i][j] = gradMul[j] / mcCycleCount;
+            gradients[i][j] = gradient[j] / mcCycleCount;
+        }
     }
 
-    return calcMeanStd(energies);
+    std::vector<std::vector<double>> energyGrads;
+    energyGrads.resize(walkerCount);
+
+    for (size_t i = 0; i < walkerCount; i++)
+    {
+        energyGrads[i].resize(gradients[0].size());
+        for (size_t j = 0; j < gradients[0].size(); j++)
+        {
+            energyGrads[i][j] = 2 * (gradMuls[i][j] - gradients[i][j] * energies[i]);
+        }
+    }
+
+    auto energyTouple = calcMeanStd(energies);
+    auto gradTouple = vectorCalcMeanStd(energyGrads);
+
+    return {
+        std::get<0>(energyTouple),
+        std::get<1>(energyTouple),
+        std::get<0>(gradTouple),
+        std::get<1>(gradTouple),
+    };
 }
-
-// template <size_t N, size_t d>
-// void sphericalMCSampler(
-//     double D, double timeStep, size_t mcCycleCount, std::vector<double> &alphaValues,
-//     ParticleSystem<N, d> &initialState, SphericalWF<N, d> &waveFunction, Random &random)
-// {
-//     for (size_t ia = 0; ia < alphaValues.size(); ia++)
-//     {
-//         auto [energy, error] = monteCarloSampler(
-//             D, timeStep, mcCycleCount, initialState, waveFunction, random);
-
-//         // outfile.write('%f %f %f %f %f\n' % (alpha, beta, energy, variance, error));
-//     }
-
-//     // return energies, alphaValues, betaValues;
-// }
-
-// template <size_t N, size_t d>
-// void elipticalMCSampler(
-//     double D, double timeStep, size_t mcCycleCount, std::vector<double> &alphaValues,
-//     std::vector<double> &betaValues, ParticleSystem<N, d> &initialState,
-//     ElipticalWF<N, d> &waveFunction, Random &random)
-// {
-//     for (size_t ia = 0; ia < alphaValues.size(); ia++)
-//     {
-//         for (size_t ib = 0; ib < betaValues.size(); ib++)
-//         {
-//             auto [energy, error] = monteCarloSampler(
-//                 D, timeStep, mcCycleCount, initialState, waveFunction, random);
-
-//             // outfile.write('%f %f %f %f %f\n' % (alpha, beta, energy, variance, error));
-//         }
-//     }
-
-//     // return energies, alphaValues, betaValues;
-// }
