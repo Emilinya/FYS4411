@@ -3,26 +3,26 @@
 #include <fstream>
 #include <string>
 
-#include "samplers.hh"
+#include "alphaSamplers.hh"
 
 template <size_t d>
-void metMultiSampler(std::vector<double> &alphaVec, double stepSize, size_t mcCycleCount, size_t walkerCount)
+void multiSampler(std::vector<double> &alphaVec, const MCMode mode, double magnitude, size_t mcCycleCount, size_t walkerCount)
 {
-    std::string dStr = std::to_string(d);
-    metSampler<1, d>(alphaVec, stepSize, mcCycleCount, walkerCount, "data/d" + dStr + "N1_met.dat");
-    metSampler<10, d>(alphaVec, stepSize, mcCycleCount, walkerCount, "data/d" + dStr + "N10_met.dat");
-    metSampler<100, d>(alphaVec, stepSize, mcCycleCount, walkerCount, "data/d" + dStr + "N100_met.dat");
-    metSampler<500, d>(alphaVec, stepSize, mcCycleCount, walkerCount, "data/d" + dStr + "N500_met.dat");
-}
+    std::string modeStr;
+    if (mode == MCMode::MET) {
+        modeStr = "met";
+    }
+    else
+    {
+        modeStr = "methas";
+    }
+    std::string s1 = "data/d" + std::to_string(d) + "N";
+    std::string s2 = "_" + modeStr + ".dat";
 
-template <size_t d>
-void methasMultiSampler(std::vector<double> &alphaVec, double timeStep, size_t mcCycleCount, size_t walkerCount)
-{
-    std::string dStr = std::to_string(d);
-    methasSampler<1, d>(alphaVec, timeStep, mcCycleCount, walkerCount, "data/d" + dStr + "N1_methas.dat");
-    methasSampler<10, d>(alphaVec, timeStep, mcCycleCount, walkerCount, "data/d" + dStr + "N10_methas.dat");
-    methasSampler<100, d>(alphaVec, timeStep, mcCycleCount, walkerCount, "data/d" + dStr + "N100_methas.dat");
-    methasSampler<500, d>(alphaVec, timeStep, mcCycleCount, walkerCount, "data/d" + dStr + "N500_methas.dat");
+    alphaSampler<1, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "1" + s2);
+    // alphaSampler<10, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "10" + s2);
+    // alphaSampler<100, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "100" + s2);
+    // alphaSampler<500, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "500" + s2);
 }
 
 int main()
@@ -36,14 +36,14 @@ int main()
     // calibrateStepSize<1, 1>(0.4, 5.125 * 0.1, 1e7, 8);
     
     double optimalStepSize = 0.1;
-    metMultiSampler<1>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
-    metMultiSampler<2>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
-    metMultiSampler<3>(alphaVec, optimalStepSize, mcCycleCount, walkerCount);
+    multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    // multiSampler<2>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    // multiSampler<3>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
 
     double optimalTimeStep = 0.005;
-    methasMultiSampler<1>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
-    methasMultiSampler<2>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
-    methasMultiSampler<3>(alphaVec, optimalTimeStep, mcCycleCount, walkerCount);
+    multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    // multiSampler<2>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    // multiSampler<3>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
 
     // methasSampler<100, 1>(alphaVec, optimalTimeStep, 1e4, walkerCount, "data/temp.dat");
 
