@@ -70,10 +70,19 @@ def comp_E(N, d, m, omega):
     plt.savefig(f"plot/d{d}N{N}.png", dpi=200)
     plt.close(fig)
 
-def main():
-    m = 1
-    omega = 1
 
+def grad_comp_E(N, d, m, omega):
+    alpha_ray, E_num_ray, E_err_ray = np.loadtxt(f"data/grad_d{d}N{N}_methas.dat").T
+    hq_alpha_ray = np.linspace(0.4, 0.6, 100)
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    plt.plot(hq_alpha_ray, E_anal(hq_alpha_ray, N, d, m, omega), "k")
+    plot_w_std(plt, alpha_ray, E_num_ray, E_err_ray, "numeric", colors[0])
+
+    plt.savefig(f"plot/grad_d{d}N{N}.png", dpi=200)
+    plt.close()
+
+def plot_dist(m, omega):
     # N_list = [1, 10, 100, 500]
     # d_list = [1, 2, 3]
     N_list = [1]
@@ -82,6 +91,23 @@ def main():
     for N in N_list:
         for d in d_list:
             comp_E(N, d, m, omega)
+
+
+def plot_grad(m, omega):
+    N_list = [1]
+    d_list = [1]
+
+    for N in N_list:
+        for d in d_list:
+            grad_comp_E(N, d, m, omega)
+
+
+def main():
+    m = 1
+    omega = 1
+
+    # plot_dist(m, omega)
+    plot_grad(m, omega)
 
 if __name__ == "__main__":
     plt.rcParams['font.size'] = '14'

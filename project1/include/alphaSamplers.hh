@@ -33,8 +33,56 @@ void alphaSampler(
             diameter, mass, stateSize, alphaVec[i]);
 
         dataFile << alphaVec[i] << " " << out.E << " " << out.stdE << " ";
-        dataFile << out.logGrad[0] << " " << out.stdLogGrad[0] << "\n";
+        dataFile << out.gradE[0] << " " << out.stdGradE[0] << "\n";
     }
+    std::cout << std::endl;
+    dataFile.close();
+}
+
+template <size_t N, size_t d>
+void gradAlphaSampler(
+    double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
+    double magnitude, size_t mcCycleCount, size_t walkerCount, std::string filename)
+{
+    size_t trueCycleCount = mcCycleCount / sqrt(N);
+    size_t burnCycleCount = trueCycleCount / 100;
+
+    double mass = 1;
+    double diameter = 0;
+    double stateSize = 1;
+
+    std::cout << "N=" << N << ", d=" << d << std::endl;
+    std::ofstream dataFile;
+    dataFile.precision(14);
+    dataFile.open(filename);
+
+    double moment = 0;
+    double decay = 0.9;
+
+    double grad = std::nan("");
+    double alpha = alpha0;
+    for (size_t i = 0; i < maxSteps; i++)
+    {
+        rprint("  "
+               << "i = " << i + 1 << ", alpha = "
+               << alpha << ", grad = " << grad);
+
+        MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
+            mode, magnitude, trueCycleCount, burnCycleCount, walkerCount,
+            diameter, mass, stateSize, alpha);
+        grad = out.gradE[0];
+
+        dataFile << alpha << " " << out.E << " " << out.stdE << "\n";
+
+        if (std::abs(grad) < 1e-14)
+        {
+            break;
+        }
+
+        moment = decay * moment + (1 - decay) * grad * grad;
+        alpha = alpha - learningRate * grad / (std::sqrt(moment) + 1e-14);
+    }
+
     std::cout << std::endl;
     dataFile.close();
 }

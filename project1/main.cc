@@ -36,16 +36,18 @@ int main()
     // calibrateStepSize<1, 1>(0.4, 5.125 * 0.1, 1e7, 8);
     
     double optimalStepSize = 0.1;
-    multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    // multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
     // multiSampler<2>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
     // multiSampler<3>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
 
     double optimalTimeStep = 0.005;
-    multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    // multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
     // multiSampler<2>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
     // multiSampler<3>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
 
-    // methasSampler<100, 1>(alphaVec, optimalTimeStep, 1e4, walkerCount, "data/temp.dat");
+    gradAlphaSampler<1, 1>(
+        0.4, 0.02, 50, MCMode ::METHAS, optimalTimeStep, mcCycleCount,
+        walkerCount, "data/grad_d1N1_methas.dat");
 
     return 0;
 }

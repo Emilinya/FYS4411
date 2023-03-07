@@ -24,8 +24,8 @@ struct MCSamplerOut
 {
     double E;
     double stdE;
-    std::vector<double> logGrad;
-    std::vector<double> stdLogGrad;
+    std::vector<double> gradE;
+    std::vector<double> stdGradE;
 };
 
 template <size_t d>
