@@ -50,7 +50,8 @@ MCStepOut mcStep(
         double wfNew = waveFunctionNew.evaluate();
 
         double probabilityRatio = (wfNew * wfNew) / (wfOld * wfOld);
-        if (mode == MCMode::METHAS) {
+        if (mode == MCMode::METHAS)
+        {
             probabilityRatio *= calcGreensFunction<N, d>(magnitude, i, waveFunctionOld, waveFunctionNew);
         }
 
@@ -77,48 +78,29 @@ MCSamplerOut mcSampler(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,
     size_t walkerCount, double diameter, double mass, double stateSize, double alpha)
 {
-    std::vector<double> energies;
-    std::vector<std::vector<double>> gradMuls;
-    std::vector<std::vector<double>> gradients;
-
-    energies.resize(walkerCount);
-    gradMuls.resize(walkerCount);
-    gradients.resize(walkerCount);
-
-    for (size_t i = 0; i < walkerCount; i++)
+    uint numParams = 0;
+    if (typeid(WFClass) == typeid(SphericalWF<N, d>))
     {
-        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
-        {
-            gradients[i] = {0};
-            gradMuls[i] = {0};
-        }
-        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
-        {
-            gradients[i] = {0, 0};
-            gradMuls[i] = {0, 0};
-        }
+        numParams = 1;
+    }
+    else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+    {
+        numParams = 2;
     }
 
-    #pragma omp parallel for
+    std::vector<double> energies(walkerCount, 0);
+    std::vector<std::vector<double>> gradMuls(walkerCount, std::vector<double>(numParams, 0));
+    std::vector<std::vector<double>> gradients(walkerCount, std::vector<double>(numParams, 0));
+
+#pragma omp parallel for
     for (size_t i = 0; i < walkerCount; i++)
     {
         Random random;
         ParticleSystem<N, d> state(diameter, mass, stateSize);
 
         double energy = 0.0;
-        std::vector<double> gradMul;
-        std::vector<double> gradient;
-
-        if (typeid(WFClass) == typeid(SphericalWF<N, d>))
-        {
-            gradMul = {0};
-            gradient = {0};
-        }
-        else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
-        {
-            gradMul = {0, 0};
-            gradient = {0, 0};
-        }
+        std::vector<double> gradMul(numParams, 0);
+        std::vector<double> gradient(numParams, 0);
 
         WFClass waveFunction(alpha, mode);
         waveFunction.setState(state);
@@ -137,7 +119,7 @@ MCSamplerOut mcSampler(
             MCStepOut out = mcStep<N, d, WFClass>(magnitude, waveFunction, mode, random);
 
             energy += out.E;
-            for (size_t j = 0; j < out.logGrad.size(); j++)
+            for (size_t j = 0; j < numParams; j++)
             {
                 gradient[j] += out.logGrad[j];
                 gradMul[j] += out.E * out.logGrad[j];
@@ -146,20 +128,18 @@ MCSamplerOut mcSampler(
 
         energies[i] = energy / mcCycleCount;
 
-        for (size_t j = 0; j < gradient.size(); j++)
+        for (size_t j = 0; j < numParams; j++)
         {
             gradMuls[i][j] = gradMul[j] / mcCycleCount;
             gradients[i][j] = gradient[j] / mcCycleCount;
         }
     }
 
-    std::vector<std::vector<double>> energyGrads;
-    energyGrads.resize(walkerCount);
+    std::vector<std::vector<double>> energyGrads(walkerCount, std::vector<double>(numParams, 0));
 
     for (size_t i = 0; i < walkerCount; i++)
     {
-        energyGrads[i].resize(gradients[0].size());
-        for (size_t j = 0; j < gradients[0].size(); j++)
+        for (size_t j = 0; j < numParams; j++)
         {
             energyGrads[i][j] = 2 * (gradMuls[i][j] - gradients[i][j] * energies[i]);
         }
