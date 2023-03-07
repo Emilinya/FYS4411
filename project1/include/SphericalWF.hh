@@ -19,48 +19,18 @@ public:
         this->parameters_ = {alpha};
     }
 
-    void setState(const ParticleSystem<N, d> &particles);
-    inline ParticleSystem<N, d> &getState();
-
     void pertubateState(size_t idx, double magnitude, Random &random);
     void updateFrom(WaveFunction<N, d> &waveFunction, size_t idx);
 
-    double evaluate(const ParticleSystem<N, d> &particleSystem);
     double evaluate();
-    inline std::optional<double> &getValue();
-
-    double computeLocalEnergy(const ParticleSystem<N, d> &particleSystem);
     double computeLocalEnergy();
-    inline std::optional<double> &getLocalEnergy();
-
-    QForceMat<N, d> &computeQForce(const ParticleSystem<N, d> &particleSystem);
     QForceMat<N, d> &computeQForce();
-    inline std::optional<QForceMat<N, d>> &getQForce();
+    std::vector<double> &computeLogGrad();
 
 private:
     double alpha_ = 0;
     const WFMode mode_;
 };
-
-template <size_t N, size_t d>
-void SphericalWF<N, d>::setState(const ParticleSystem<N, d> &particles)
-{
-    this->state_ = particles;
-
-    this->value_.reset();
-    this->qForce_.reset();
-    this->localEnergy_.reset();
-}
-
-template <size_t N, size_t d>
-ParticleSystem<N, d> &SphericalWF<N, d>::getState()
-{
-    if (!this->state_)
-    {
-        throw std::runtime_error("SphericalWF: Can't get state before setting state");
-    }
-    return this->state_.value();
-}
 
 template <size_t N, size_t d>
 void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &random)
@@ -105,6 +75,7 @@ void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
 
     system.setAt(idx, particleCopy);
     this->localEnergy_.reset();
+    this->logGrad_.reset();
 }
 
 template <size_t N, size_t d>
@@ -121,6 +92,7 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
 
     this->value_ = waveFunction.getValue();
     this->localEnergy_.reset();
+    this->logGrad_.reset();
 
     if (this->mode_ == WFMode::METHAS) {
         std::optional<QForceMat<N, d>> &otherQForce = waveFunction.getQForce();
@@ -134,13 +106,6 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
             this->qForce_.reset();
         }
     }
-}
-
-template <size_t N, size_t d>
-double SphericalWF<N, d>::evaluate(const ParticleSystem<N, d> &particleSystem)
-{
-    setState(particleSystem);
-    return evaluate();
 }
 
 template <size_t N, size_t d>
@@ -194,19 +159,6 @@ double SphericalWF<N, d>::evaluate()
 }
 
 template <size_t N, size_t d>
-inline std::optional<double> &SphericalWF<N, d>::getValue()
-{
-    return this->value_;
-}
-
-template <size_t N, size_t d>
-double SphericalWF<N, d>::computeLocalEnergy(const ParticleSystem<N, d> &particleSystem)
-{
-    setState(particleSystem);
-    return computeLocalEnergy();
-}
-
-template <size_t N, size_t d>
 double SphericalWF<N, d>::computeLocalEnergy()
 {
     if (this->localEnergy_)
@@ -232,19 +184,6 @@ double SphericalWF<N, d>::computeLocalEnergy()
     this->localEnergy_ = const1 + const2 * distSum;
 
     return this->localEnergy_.value();
-}
-
-template <size_t N, size_t d>
-inline std::optional<double> &SphericalWF<N, d>::getLocalEnergy()
-{
-    return this->localEnergy_;
-}
-
-template <size_t N, size_t d>
-QForceMat<N, d> &SphericalWF<N, d>::computeQForce(const ParticleSystem<N, d> &particleSystem)
-{
-    setState(particleSystem);
-    return computeQForce();
 }
 
 template <size_t N, size_t d>
@@ -278,7 +217,20 @@ QForceMat<N, d> &SphericalWF<N, d>::computeQForce()
 }
 
 template <size_t N, size_t d>
-inline std::optional<QForceMat<N, d>> &SphericalWF<N, d>::getQForce()
+std::vector<double> &SphericalWF<N, d>::computeLogGrad()
 {
-    return this->qForce_;
+    if (this->logGrad_)
+    {
+        return this->logGrad_.value();
+    }
+
+    if (!this->state_)
+    {
+        throw std::runtime_error("SphericalWF: Can't compute local energy before setting state");
+    }
+
+    ParticleSystem<N, d> &system = this->state_.value();
+
+    this->logGrad_ = {-system.getSquareSum()};
+    return this->logGrad_.value();
 }
