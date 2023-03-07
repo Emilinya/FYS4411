@@ -11,12 +11,6 @@
 template <size_t d>
 class Particle;
 
-enum class WFMode
-{
-    MET,
-    METHAS,
-};
-
 template <size_t N, size_t d>
 class WaveFunction
 {
@@ -108,7 +102,7 @@ template <size_t N, size_t d>
 class ElipticalWF : public WaveFunction<N, d>
 {
 public:
-    ElipticalWF(double alpha, double beta, WFMode mode);
+    ElipticalWF(double alpha, double beta, MCMode mode);
 
     void setState(const ParticleSystem<N, d> &particles);
     inline ParticleSystem<N, d> &getState();
@@ -131,5 +125,5 @@ public:
 private:
     double alpha_ = 0;
     double beta_ = 0;
-    const WFMode mode_;
+    const MCMode mode_;
 };

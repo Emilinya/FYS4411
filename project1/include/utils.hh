@@ -8,6 +8,12 @@
 template <size_t N, size_t d>
 using QForceMat = std::array<std::array<double, d>, N>;
 
+enum class MCMode
+{
+    MET,
+    METHAS,
+};
+
 struct MCStepOut
 {
     double E;

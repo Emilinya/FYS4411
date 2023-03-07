@@ -11,7 +11,9 @@
 #include "SphericalWF.hh"
 
 template <size_t N, size_t d>
-double calcGreensFunction(double timeStep, size_t idx, WaveFunction<N, d> &waveFunctionOld, WaveFunction<N, d> &waveFunctionNew)
+double calcGreensFunction(
+    double timeStep, size_t idx,
+    WaveFunction<N, d> &waveFunctionOld, WaveFunction<N, d> &waveFunctionNew)
 {
     const double D = 0.5; // Diffusion constant, 1/2 in atomic units
 
@@ -33,23 +35,24 @@ double calcGreensFunction(double timeStep, size_t idx, WaveFunction<N, d> &waveF
     return exp(expTerm);
 }
 
-// Monte Carlo sampling with the Metropolis-Hastings algorithm
 template <size_t N, size_t d, class WFClass>
-MCStepOut methasMonteCarloStep(
-    double timeStep, WFClass &waveFunctionOld, Random &random)
+MCStepOut mcStep(
+    double magnitude, WFClass &waveFunctionOld, const MCMode mode, Random &random)
 {
     WFClass waveFunctionNew = waveFunctionOld;
 
-    // Trial position moving one particle at the time
+    // trial position moving one particle at the time
     for (size_t i = 0; i < N; i++)
     {
-        waveFunctionNew.pertubateState(i, timeStep, random);
+        waveFunctionNew.pertubateState(i, magnitude, random);
 
         double wfOld = waveFunctionOld.evaluate();
         double wfNew = waveFunctionNew.evaluate();
 
-        double greensFunction = calcGreensFunction<N, d>(timeStep, i, waveFunctionOld, waveFunctionNew);
-        double probabilityRatio = greensFunction * (wfNew * wfNew) / (wfOld * wfOld);
+        double probabilityRatio = (wfNew * wfNew) / (wfOld * wfOld);
+        if (mode == MCMode::METHAS) {
+            probabilityRatio *= calcGreensFunction<N, d>(magnitude, i, waveFunctionOld, waveFunctionNew);
+        }
 
         // Metropolis-Hastings test to see whether we accept the move
         if (probabilityRatio >= 1 || random.nextDouble(0, 1) <= probabilityRatio)
@@ -68,9 +71,10 @@ MCStepOut methasMonteCarloStep(
     };
 }
 
+// Monte Carlo sampling with the Metropolis or Metropolis-Hastings algorithm
 template <size_t N, size_t d, class WFClass>
-MCSamplerOut methasMonteCarloSampler(
-    double timeStep, size_t mcCycleCount, size_t burnCycleCount,
+MCSamplerOut mcSampler(
+    const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,
     size_t walkerCount, double diameter, double mass, double stateSize, double alpha)
 {
     std::vector<double> energies;
@@ -116,7 +120,7 @@ MCSamplerOut methasMonteCarloSampler(
             gradient = {0, 0};
         }
 
-        WFClass waveFunction(alpha, WFMode::METHAS);
+        WFClass waveFunction(alpha, mode);
         waveFunction.setState(state);
 
         // evaluate once so value is copied to the wave function copy
@@ -125,12 +129,12 @@ MCSamplerOut methasMonteCarloSampler(
         // burn some samples
         for (size_t mcCycle = 0; mcCycle < burnCycleCount; mcCycle++)
         {
-            methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
+            mcStep<N, d, WFClass>(magnitude, waveFunction, mode, random);
         }
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
-            MCStepOut out = methasMonteCarloStep<N, d, WFClass>(timeStep, waveFunction, random);
+            MCStepOut out = mcStep<N, d, WFClass>(magnitude, waveFunction, mode, random);
 
             energy += out.E;
             for (size_t j = 0; j < out.logGrad.size(); j++)

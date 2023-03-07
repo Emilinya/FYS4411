@@ -11,7 +11,7 @@ template <size_t N, size_t d>
 class SphericalWF : public WaveFunction<N, d>
 {
 public:
-    SphericalWF(double alpha, WFMode mode) : mode_(mode)
+    SphericalWF(double alpha, MCMode mode) : mode_(mode)
     {
         assert(alpha >= 0);
 
@@ -29,7 +29,7 @@ public:
 
 private:
     double alpha_ = 0;
-    const WFMode mode_;
+    const MCMode mode_;
 };
 
 template <size_t N, size_t d>
@@ -45,12 +45,12 @@ void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
     Particle<d> particleCopy = system[idx];
     for (size_t j = 0; j < d; j++)
     {
-        if (mode_ == WFMode::MET)
+        if (mode_ == MCMode::MET)
         {
             double rndStep = magnitude * (random.nextDouble(0, 1) - 0.5);
             particleCopy.adjustPosition(rndStep, j);
         }
-        else if (mode_ == WFMode::METHAS)
+        else if (mode_ == MCMode::METHAS)
         {
             double rndStep = random.nextGaussian(0.0, 1.0) * sqrt(magnitude);
             double qForce = computeQForce()[idx][j] * magnitude * 0.5; // 0.5: Diffusion constant in atomic units
@@ -62,7 +62,7 @@ void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
     double distDiff = particleCopy.getSquaredDistance() - system[idx].getSquaredDistance();
     this->value_ = prevValue * std::exp(-alpha_ * distDiff);
 
-    if (mode_ == WFMode::METHAS)
+    if (mode_ == MCMode::METHAS)
     {
         QForceMat<N, d> &qForce = computeQForce();
         const std::array<double, d> &newPos = particleCopy.getPosition();
@@ -94,7 +94,7 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
     this->localEnergy_.reset();
     this->logGrad_.reset();
 
-    if (this->mode_ == WFMode::METHAS) {
+    if (this->mode_ == MCMode::METHAS) {
         std::optional<QForceMat<N, d>> &otherQForce = waveFunction.getQForce();
         if (otherQForce) {
             if (this->qForce_) {
