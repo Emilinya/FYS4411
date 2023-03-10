@@ -9,7 +9,8 @@ template <size_t d>
 void multiSampler(std::vector<double> &alphaVec, const MCMode mode, double magnitude, size_t mcCycleCount, size_t walkerCount)
 {
     std::string modeStr;
-    if (mode == MCMode::MET) {
+    if (mode == MCMode::MET)
+    {
         modeStr = "met";
     }
     else
@@ -20,9 +21,35 @@ void multiSampler(std::vector<double> &alphaVec, const MCMode mode, double magni
     std::string s2 = "_" + modeStr + ".dat";
 
     alphaSampler<1, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "1" + s2);
-    // alphaSampler<10, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "10" + s2);
-    // alphaSampler<100, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "100" + s2);
-    // alphaSampler<500, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "500" + s2);
+    alphaSampler<10, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "10" + s2);
+    alphaSampler<100, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "100" + s2);
+    alphaSampler<500, d>(alphaVec, mode, magnitude, mcCycleCount, walkerCount, s1 + "500" + s2);
+}
+
+void multiCalibrator(const MCMode mode, size_t mcCycleCount, size_t walkerCount)
+{
+    std::string modeStr;
+    if (mode == MCMode::MET)
+    {
+        modeStr = "met";
+    }
+    else
+    {
+        modeStr = "methas";
+    }
+
+    double alpha = 0.4;
+    double analVal = 0.5125;
+
+    calibrateMagnitude<1, 1>(
+        alpha, analVal, mode, mcCycleCount,
+        walkerCount, "data/calibrate_d1N1_" + modeStr + ".dat");
+    calibrateMagnitude<500, 1>(
+        alpha, 500. * analVal, mode, mcCycleCount,
+        walkerCount, "data/calibrate_d1N500_" + modeStr + ".dat");
+    calibrateMagnitude<500, 3>(
+        alpha, 1500. * analVal, mode, mcCycleCount,
+        walkerCount, "data/calibrate_d3N500_" + modeStr + ".dat");
 }
 
 int main()
@@ -31,10 +58,9 @@ int main()
     size_t mcCycleCount = 5e5;
     size_t walkerCount = 8;
 
-    // calibrateStepSize<100, 1>(0.4, 5.125 * 10, 1e7, 8);
-    // calibrateStepSize<10, 1>(0.4, 5.125, 1e7, 8);
-    // calibrateStepSize<1, 1>(0.4, 5.125 * 0.1, 1e7, 8);
-    
+    // multiCalibrator(MCMode::MET, 1e7, walkerCount);
+    // multiCalibrator(MCMode::METHAS, 1e7, walkerCount);
+
     double optimalStepSize = 0.1;
     // multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
     // multiSampler<2>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
@@ -44,10 +70,6 @@ int main()
     // multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
     // multiSampler<2>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
     // multiSampler<3>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
-
-    gradAlphaSampler<1, 1>(
-        0.4, 0.02, 50, MCMode ::METHAS, optimalTimeStep, mcCycleCount,
-        walkerCount, "data/grad_d1N1_methas.dat");
 
     return 0;
 }

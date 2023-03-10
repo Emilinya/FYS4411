@@ -44,8 +44,7 @@ void gradAlphaSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
     double magnitude, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount / sqrt(N);
-    size_t burnCycleCount = trueCycleCount / 100;
+    size_t cycleCount = mcCycleCount / sqrt(N) / 100;
 
     double mass = 1;
     double diameter = 0;
@@ -68,7 +67,7 @@ void gradAlphaSampler(
                << alpha << ", grad = " << grad);
 
         MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
-            mode, magnitude, trueCycleCount, burnCycleCount, walkerCount,
+            mode, magnitude, cycleCount, cycleCount / 100, walkerCount,
             diameter, mass, stateSize, alpha);
         grad = out.gradE[0];
 
@@ -81,6 +80,8 @@ void gradAlphaSampler(
 
         moment = decay * moment + (1 - decay) * grad * grad;
         alpha = alpha - learningRate * grad / (std::sqrt(moment) + 1e-14);
+
+        cycleCount = std::min(cycleCount*100, (size_t)(cycleCount*1.05));
     }
 
     std::cout << std::endl;
@@ -90,17 +91,24 @@ void gradAlphaSampler(
 template <size_t N, size_t d>
 double calibrateMagnitude(
     double alpha, double analVal, const MCMode mode,
-    size_t mcCycleCount, size_t walkerCount)
+    size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
     size_t trueCycleCount = mcCycleCount / sqrt(N);
     size_t burnCycleCount = trueCycleCount / 100;
     double initialMagnitude = 0.5;
 
+    std::ofstream dataFile;
+    dataFile.precision(14);
+    dataFile.open(filename);
+    std::cout << "N=" << N << ", d=" << d << std::endl;
+
     auto getDiff = [&](double magnitude)
     {
-        auto mcTouple = mcSampler<N, d, SphericalWF<N, d>>(
+        print(" ", magnitude);
+        MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
             mode, magnitude, trueCycleCount, burnCycleCount, walkerCount, 0, 1, 1, alpha);
-        return abs(analVal - std::get<0>(mcTouple));
+        dataFile << magnitude << " " << abs(analVal - out.E) << " " << out.stdGradE[0] << "\n";
+        return abs(analVal - out.E);
     };
 
     double initialDiff = getDiff(initialMagnitude);
@@ -115,6 +123,7 @@ double calibrateMagnitude(
     if (initialDiff < halfDiff && initialDiff < doubleDiff)
     {
         // The initial magnitude was optimal
+        dataFile.close();
         return initialMagnitude;
     }
     else if (halfDiff < doubleDiff)
@@ -186,6 +195,7 @@ double calibrateMagnitude(
 
             if (midDiff < q1Diff && midDiff < q3Diff)
             {
+                dataFile.close();
                 return mid;
             }
             else if (q1Diff < q3Diff)
@@ -212,5 +222,6 @@ double calibrateMagnitude(
         }
     }
 
+    dataFile.close();
     return mid;
 }

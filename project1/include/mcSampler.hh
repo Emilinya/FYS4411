@@ -9,6 +9,7 @@
 #include "Random.hh"
 #include "WaveFunction.hh"
 #include "SphericalWF.hh"
+#include "ElipticalWF.hh"
 
 template <size_t N, size_t d>
 double calcGreensFunction(
@@ -83,7 +84,7 @@ MCSamplerOut mcSampler(
     {
         numParams = 1;
     }
-    else if (typeid(WFClass) == typeid(ElipticalWF<N, d>))
+    else if (typeid(WFClass) == typeid(ElipticalWF<N>))
     {
         numParams = 2;
     }
