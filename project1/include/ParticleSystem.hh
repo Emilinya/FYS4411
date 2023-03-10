@@ -52,7 +52,8 @@ public:
         return m_;
     }
 
-    inline void setAt(size_t idx, const Particle<d> &other) {
+    inline void setAt(size_t idx, const Particle<d> &other)
+    {
         particles_[idx] = other;
     }
 

@@ -79,7 +79,8 @@ void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
 }
 
 template <size_t N, size_t d>
-void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx) {
+void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
+{
     if (!this->state_)
     {
         throw std::runtime_error("SphericalWF: Can't update from wavefunction before setting state");
@@ -94,15 +95,22 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
     this->localEnergy_.reset();
     this->logGrad_.reset();
 
-    if (this->mode_ == MCMode::METHAS) {
+    if (this->mode_ == MCMode::METHAS)
+    {
         std::optional<QForceMat<N, d>> &otherQForce = waveFunction.getQForce();
-        if (otherQForce) {
-            if (this->qForce_) {
+        if (otherQForce)
+        {
+            if (this->qForce_)
+            {
                 this->qForce_.value()[idx] = otherQForce.value()[idx];
-            } else {
+            }
+            else
+            {
                 this->qForce_ = otherQForce;
             }
-        } else {
+        }
+        else
+        {
             this->qForce_.reset();
         }
     }
@@ -173,15 +181,7 @@ double SphericalWF<N, d>::computeLocalEnergy()
 
     ParticleSystem<N, d> &system = this->state_.value();
 
-    double m = 1;
-    double omega = 1;
-
-    double const1 = alpha_ * (double)(d * N) / m;
-    double const2 = 0.5 * m * omega * omega - 2. * alpha_ * alpha_ / m;
-
-    double distSum = system.getSquareSum();
-
-    this->localEnergy_ = const1 + const2 * distSum;
+    this->localEnergy_ = (double)(d * N) * alpha_ + (0.5 - 2. * alpha_ * alpha_) * system.getSquareSum();
 
     return this->localEnergy_.value();
 }
