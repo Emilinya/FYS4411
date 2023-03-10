@@ -97,33 +97,3 @@ std::vector<double> &WaveFunction<N, d>::computeLogGrad(const ParticleSystem<N, 
     setState(particleSystem);
     return computeLogGrad();
 }
-
-template <size_t N, size_t d>
-class ElipticalWF : public WaveFunction<N, d>
-{
-public:
-    ElipticalWF(double alpha, double beta, MCMode mode);
-
-    void setState(const ParticleSystem<N, d> &particles);
-    inline ParticleSystem<N, d> &getState();
-
-    void pertubateState(size_t idx, double timeStep, Random &random);
-    void updateFrom(WaveFunction<N, d> &waveFunction, size_t idx);
-
-    double evaluate(const ParticleSystem<N, d> &particles);
-    double evaluate();
-    inline std::optional<double> &getValue();
-
-    double computeLocalEnergy(const ParticleSystem<N, d> &particles);
-    double computeLocalEnergy();
-    inline std::optional<double> &getLocalEnergy();
-
-    QForceMat<N, d> &computeQForce(const ParticleSystem<N, d> &particles);
-    QForceMat<N, d> &computeQForce();
-    inline std::optional<QForceMat<N, d>> &getQForce();
-
-private:
-    double alpha_ = 0;
-    double beta_ = 0;
-    const MCMode mode_;
-};

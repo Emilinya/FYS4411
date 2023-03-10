@@ -4,9 +4,17 @@
 #include <array>
 #include <tuple>
 #include <cmath>
+#include <iomanip>
+
+#include <armadillo>
 
 template <size_t N, size_t d>
 using QForceMat = std::array<std::array<double, d>, N>;
+
+template <uint N>
+using Vec = arma::dvec::fixed<N>;
+
+typedef Vec<3> Vec3;
 
 enum class MCMode
 {
@@ -31,16 +39,17 @@ struct MCSamplerOut
 template <size_t d>
 void printRay(std::array<double, d> &array)
 {
-    if (d==0) {
+    if (d == 0)
+    {
         std::cout << "()\n";
     }
 
     std::cout << "(";
-    for (size_t i = 0; i < d-1; i++)
+    for (size_t i = 0; i < d - 1; i++)
     {
         std::cout << array[i] << ", ";
     }
-    std::cout << array[d-1] << ")\n";
+    std::cout << array[d - 1] << ")\n";
 }
 
 // This function acts like np.linspace
@@ -69,7 +78,7 @@ std::tuple<double, double> calcMeanStd(std::vector<double> &vals)
     double std = 0;
     for (size_t i = 0; i < vals.size(); i++)
     {
-        double diff = (vals[i]  - mean);
+        double diff = (vals[i] - mean);
         std += diff * diff;
     }
     std = std::sqrt(std / (double)vals.size());
@@ -95,7 +104,6 @@ vectorCalcMeanStd(const std::vector<std::vector<double>> &vals)
         means[i] = 0;
         stds[i] = 0;
     }
-    
 
     for (size_t i = 0; i < outerN; i++)
     {
@@ -137,7 +145,7 @@ inline void print()
 template <typename T>
 inline void print(T arg)
 {
-    std::cerr << arg << '\n';
+    std::cerr << std::setprecision(std::numeric_limits<T>::digits10) << arg << '\n';
 }
 
 template <typename T, typename... Rest>
@@ -148,3 +156,88 @@ inline void print(T arg, Rest... rest)
 }
 
 #define rprint(stuff) std::cerr << "\r" << stuff << "          "
+
+// string formatting from https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
+template <typename... Args>
+std::string string_format(const std::string &format, Args... args)
+{
+    int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+    if (size_s <= 0)
+    {
+        throw std::runtime_error("Error during formatting.");
+    }
+    auto size = static_cast<size_t>(size_s);
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1);
+}
+
+std::string prettify_ms(double ms)
+{
+    if (ms > 1000.)
+    {
+        int s = static_cast<int>(ms / 1000.);
+        if (s > 60.)
+        {
+            // TODO: Implement this properly
+            int m = static_cast<int>(s / 60.);
+            ms -= 1000. * s;
+            s -= m * 60;
+            return string_format("%d m %d s %.0f ms", m, s, ms);
+        }
+        else
+        {
+            ms -= 1000. * s;
+            if (ms == 0)
+            {
+                return string_format("%d s", s);
+            }
+            else
+            {
+                return string_format("%d s %.0f ms", s, ms);
+            }
+        }
+    }
+    else
+    {
+        return string_format("%.3g ms", ms);
+    }
+}
+
+class Timer
+{
+    // This is a timer class to simplify timing (especially removing all those long type declarations)
+public:
+    Timer();
+    double get_ms();
+    std::string get_pretty();
+    void restart();
+
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+};
+
+Timer::Timer()
+{
+    start = std::chrono::high_resolution_clock::now();
+}
+
+double Timer::get_ms()
+{
+    // Get elapsed time in ms as a double
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = end - start;
+
+    return duration.count();
+}
+
+std::string Timer::get_pretty()
+{
+    // Get elapsed time as a nice, formatted string
+    return prettify_ms(Timer::get_ms());
+}
+
+void Timer::restart()
+{
+    start = std::chrono::high_resolution_clock::now();
+}

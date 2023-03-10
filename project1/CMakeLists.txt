@@ -11,6 +11,8 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -fopenmp")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
+set(CMAKE_EXE_LINKER_FLAGS "-larmadillo")
+
 # Add directories containing header-files
 include_directories(
   .
