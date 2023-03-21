@@ -11,7 +11,7 @@
 template <size_t N, size_t d>
 using QForceMat = std::array<std::array<double, d>, N>;
 
-template <uint N>
+template <size_t N>
 using Vec = arma::dvec::fixed<N>;
 
 typedef Vec<3> Vec3;

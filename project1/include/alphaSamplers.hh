@@ -38,7 +38,7 @@ void alphaSampler(
     std::vector<double> &alphaVec, const MCMode mode, SamplerArgs args,
     size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t cycleCount = mcCycleCount / sqrt(N);
+    size_t cycleCount = mcCycleCount;
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
     std::ofstream dataFile;
@@ -78,7 +78,7 @@ void gradAlphaSampler(
         assert(d == 3);
     }
 
-    size_t cycleCount = mcCycleCount / sqrt(N) / 100;
+    size_t cycleCount = mcCycleCount / 100;
     double cycleFactor = std::pow(100, 1./(double)maxSteps);
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
@@ -141,9 +141,9 @@ template <size_t N, size_t d>
 double calibrateMagnitude(
     std::vector<double> &alphaVec, const MCMode mode, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount / sqrt(N);
+    size_t trueCycleCount = mcCycleCount;
     size_t burnCycleCount = trueCycleCount / 100;
-    double initialMagnitude = 4;
+    double initialMagnitude = 1;
 
     std::ofstream dataFile;
     dataFile.precision(14);
