@@ -19,16 +19,22 @@ public:
         beta_ = beta;
         gamma_ = gamma;
 
-        Gamma_ = (gamma_ * gamma_ - 4. * (alpha_ * alpha_) * (beta_ * beta_)) / (1. - 4. * alpha_ * alpha_);
+        if (beta == gamma) {
+            Gamma_ = gamma * gamma;
+        }
+        else
+        {
+            Gamma_ = (gamma_ * gamma_ - 4. * (alpha_ * alpha_) * (beta_ * beta_)) / (1. - 4. * alpha_ * alpha_);
+        }
 
         this->parameters_ = {alpha, beta};
     }
 
     inline double betaSquaredLen(const Particle<3> &particle);
 
-    void setState(const ParticleSystem<N, 3> &particleSystem);
+    bool setState(const ParticleSystem<N, 3> &particleSystem);
 
-    void pertubateState(size_t idx, double magnitude, Random &random);
+    bool pertubateState(size_t idx, double magnitude, Random &random);
     void updateFrom(WaveFunction<N, 3> &waveFunction, size_t idx);
 
     double evaluate();
@@ -54,7 +60,7 @@ inline double ElipticalWF<N>::betaSquaredLen(const Particle<3> &particle)
 }
 
 template <size_t N>
-void ElipticalWF<N>::setState(const ParticleSystem<N, 3> &particleSystem)
+bool ElipticalWF<N>::setState(const ParticleSystem<N, 3> &particleSystem)
 {
     this->state_ = particleSystem;
 
@@ -84,8 +90,8 @@ void ElipticalWF<N>::setState(const ParticleSystem<N, 3> &particleSystem)
 
             if (diffLen <= a * a)
             {
-                // particles are colliding, oh no!
-                throw std::runtime_error("ElipticalWF: Two particles are colliding, state is impossible!");
+                // particles are colliding, state is impossible
+                return false;
             }
 
             diffLen = std::sqrt(diffLen);
@@ -95,10 +101,12 @@ void ElipticalWF<N>::setState(const ParticleSystem<N, 3> &particleSystem)
             upsilonTable[j][i] = -upsilonTable[i][j];
         }
     }
+
+    return true;
 }
 
 template <size_t N>
-void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random)
+bool ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random)
 {
     if (!this->state_)
     {
@@ -108,6 +116,7 @@ void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
     ParticleSystem<N, 3> &system = this->state_.value();
     double a = system.getDiameter();
 
+    // perturbate particle at index idx
     Particle<3> particleCopy = system[idx];
     for (size_t j = 0; j < 3; j++)
     {
@@ -125,6 +134,26 @@ void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
     }
     const auto &newPos = particleCopy.getPosition();
 
+    // test to see if particle collides with any other particles
+    std::array<double, N> newDiffLens;
+    for (size_t i = 0; i < N; i++)
+    {
+        if (i == idx)
+        {
+            continue;
+        }
+
+        double newDiffLen = particleCopy.distanceTo(system[i]);
+
+        if (newDiffLen <= a)
+        {
+            // particles are colliding, state is impossible!
+            return false;
+        }
+
+        newDiffLens[i] = newDiffLen;
+    }
+     
     // subtract old upsilon values from qForce
     if (mode_ == MCMode::METHAS)
     {
@@ -156,16 +185,10 @@ void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
             continue;
         }
 
-        double diffLenOld = system[idx].distanceTo(system[i]);
-        double diffLenNew = particleCopy.distanceTo(system[i]);
+        double oldDiffLen = system[idx].distanceTo(system[i]);
+        double newDiffLen = newDiffLens[i];
 
-        if (diffLenNew <= a)
-        {
-            // particles are colliding, state is impossible!
-            throw std::runtime_error("ElipticalWF: Two particles are colliding, state is impossible!");
-        }
-
-        fChange *= 1. - a * (1. - diffLenOld / diffLenNew) / (a - diffLenOld);
+        fChange *= 1. - a * (1. - oldDiffLen / newDiffLen) / (a - oldDiffLen);
 
         Vec3 diffVecNew;
         for (size_t k = 0; k < 3; k++)
@@ -173,9 +196,9 @@ void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
             diffVecNew(k) = system[i].getPosition()[k] - newPos[k];
         }
 
-        double uPrime = a / ((diffLenNew - a) * diffLenNew);
+        double uPrime = a / ((newDiffLen - a) * newDiffLen);
 
-        upsilonTable[i][idx] = diffVecNew * uPrime / diffLenNew;
+        upsilonTable[i][idx] = diffVecNew * uPrime / newDiffLen;
         upsilonTable[idx][i] = -upsilonTable[i][idx];
     }
     this->value_ = prevValue * gChange * fChange;
@@ -209,6 +232,8 @@ void ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
     system.setAt(idx, particleCopy);
     this->localEnergy_.reset();
     this->logGrad_.reset();
+
+    return true;
 }
 
 template <size_t N>

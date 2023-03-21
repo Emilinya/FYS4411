@@ -19,7 +19,7 @@ public:
         this->parameters_ = {alpha};
     }
 
-    void pertubateState(size_t idx, double magnitude, Random &random);
+    bool pertubateState(size_t idx, double magnitude, Random &random);
     void updateFrom(WaveFunction<N, d> &waveFunction, size_t idx);
 
     double evaluate();
@@ -33,7 +33,7 @@ private:
 };
 
 template <size_t N, size_t d>
-void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &random)
+bool SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &random)
 {
     if (!this->state_)
     {
@@ -76,6 +76,8 @@ void SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
     system.setAt(idx, particleCopy);
     this->localEnergy_.reset();
     this->logGrad_.reset();
+
+    return true;
 }
 
 template <size_t N, size_t d>
