@@ -9,16 +9,36 @@
 #include "utils.hh"
 
 template <size_t N, size_t d>
+double getMagnitude(const MCMode mode)
+{
+    if (mode == MCMode::MET)
+    {
+        // prevVal: 0.1 
+        // magnitude is stepsize
+        return 4.;
+    }
+    else
+    {
+        // prevVal: 0.005
+        // magnitude is timestep
+        return 0.0127;
+    }
+}
+
+struct SamplerArgs
+{
+    double a = 0;
+    double stateSize = 1;
+    double beta = std::nan("");
+    double gamma = std::nan("");
+};
+
+template <size_t N, size_t d>
 void alphaSampler(
-    std::vector<double> &alphaVec, const MCMode mode, double magnitude,
+    std::vector<double> &alphaVec, const MCMode mode, SamplerArgs args,
     size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount / sqrt(N);
-    size_t burnCycleCount = trueCycleCount / 100;
-
-    double mass = 1;
-    double diameter = 0;
-    double stateSize = 1;
+    size_t cycleCount = mcCycleCount / sqrt(N);
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
     std::ofstream dataFile;
@@ -28,9 +48,19 @@ void alphaSampler(
     {
         rprint("  " << i + 1 << "/" << alphaVec.size());
 
-        MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
-            mode, magnitude, trueCycleCount, burnCycleCount, walkerCount,
-            diameter, mass, stateSize, alphaVec[i]);
+        MCSamplerOut out;
+        if (std::isnan(args.beta))
+        {
+            out = mcSampler<N, d>(
+                mode, getMagnitude<N, d>(mode), cycleCount, cycleCount / 100,
+                walkerCount, args.a, args.stateSize, alphaVec[i]);
+        }
+        else
+        {
+            out = mcSampler<N>(
+                mode, getMagnitude<N, 3>(mode), cycleCount, cycleCount / 100,
+                walkerCount, args.a, args.stateSize, alphaVec[i], args.beta, args.gamma);
+        }
 
         dataFile << alphaVec[i] << " " << out.E << " " << out.stdE << " ";
         dataFile << out.gradE[0] << " " << out.stdGradE[0] << "\n";
@@ -42,13 +72,14 @@ void alphaSampler(
 template <size_t N, size_t d>
 void gradAlphaSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
-    double magnitude, size_t mcCycleCount, size_t walkerCount, std::string filename)
+    SamplerArgs args, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t cycleCount = mcCycleCount / sqrt(N) / 100;
+    if (!std::isnan(args.beta)) {
+        assert(d == 3);
+    }
 
-    double mass = 1;
-    double diameter = 0;
-    double stateSize = 1;
+    size_t cycleCount = mcCycleCount / sqrt(N) / 100;
+    double cycleFactor = std::pow(100, 1./(double)maxSteps);
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
     std::ofstream dataFile;
@@ -57,6 +88,9 @@ void gradAlphaSampler(
 
     double moment = 0;
     double decay = 0.9;
+    
+    double minGrad = std::numeric_limits<double>::infinity();
+    double bestAlpha = alpha0;
 
     double grad = std::nan("");
     double alpha = alpha0;
@@ -66,12 +100,27 @@ void gradAlphaSampler(
                << "i = " << i + 1 << ", alpha = "
                << alpha << ", grad = " << grad);
 
-        MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
-            mode, magnitude, cycleCount, cycleCount / 100, walkerCount,
-            diameter, mass, stateSize, alpha);
+        MCSamplerOut out;
+        if (std::isnan(args.beta))
+        {
+            out = mcSampler<N, d>(
+                mode, getMagnitude<N, d>(mode), cycleCount, cycleCount / 100,
+                walkerCount, args.a, args.stateSize, alpha);
+        }
+        else
+        {
+            out = mcSampler<N>(
+                mode, getMagnitude<N, 3>(mode), cycleCount, cycleCount / 100,
+                walkerCount, args.a, args.stateSize, alpha, args.beta, args.gamma);
+        }
         grad = out.gradE[0];
 
         dataFile << alpha << " " << out.E << " " << out.stdE << "\n";
+
+        if (std::abs(grad) < std::abs(minGrad)) {
+            bestAlpha = alpha;
+            minGrad = grad;
+        }
 
         if (std::abs(grad) < 1e-14)
         {
@@ -81,21 +130,20 @@ void gradAlphaSampler(
         moment = decay * moment + (1 - decay) * grad * grad;
         alpha = alpha - learningRate * grad / (std::sqrt(moment) + 1e-14);
 
-        cycleCount = std::min(cycleCount*100, (size_t)(cycleCount*1.05));
+        cycleCount = (size_t)(cycleCount*cycleFactor);
     }
+    print("\n  Best alpha:", bestAlpha, ", with grad=", minGrad);
 
-    std::cout << std::endl;
     dataFile.close();
 }
 
 template <size_t N, size_t d>
 double calibrateMagnitude(
-    double alpha, double analVal, const MCMode mode,
-    size_t mcCycleCount, size_t walkerCount, std::string filename)
+    std::vector<double> &alphaVec, const MCMode mode, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
     size_t trueCycleCount = mcCycleCount / sqrt(N);
     size_t burnCycleCount = trueCycleCount / 100;
-    double initialMagnitude = 0.5;
+    double initialMagnitude = 4;
 
     std::ofstream dataFile;
     dataFile.precision(14);
@@ -104,11 +152,27 @@ double calibrateMagnitude(
 
     auto getDiff = [&](double magnitude)
     {
-        print(" ", magnitude);
-        MCSamplerOut out = mcSampler<N, d, SphericalWF<N, d>>(
-            mode, magnitude, trueCycleCount, burnCycleCount, walkerCount, 0, 1, 1, alpha);
-        dataFile << magnitude << " " << abs(analVal - out.E) << " " << out.stdGradE[0] << "\n";
-        return abs(analVal - out.E);
+        std::cout << "  " << magnitude;
+        std::fflush(stdout);
+
+        double avgDiff = 0;
+        double avgStd = 0;
+        for (auto &alpha : alphaVec)
+        {
+            MCSamplerOut out = mcSampler<N, d>(
+                mode, magnitude, trueCycleCount, burnCycleCount, walkerCount, 0, 1, alpha);
+            double analVal = (double)(d*N) * 0.5 * (alpha + 1. / (4. * alpha));
+
+            avgDiff += std::abs(out.E - analVal) / analVal;
+            avgStd += out.stdE / analVal;
+        }
+        avgDiff /= (double)alphaVec.size();
+        avgStd /= (double)alphaVec.size();
+
+        std::cout << " " << avgDiff << "\n";
+        dataFile << magnitude << " " << avgDiff << " " << avgStd << "\n";
+
+        return avgDiff;
     };
 
     double initialDiff = getDiff(initialMagnitude);
@@ -203,6 +267,12 @@ double calibrateMagnitude(
                 right = mid;
                 mid = q1;
                 midDiff = q1Diff;
+            }
+            else
+            {
+                left = mid;
+                mid = q3;
+                midDiff = q3Diff;
             }
         }
         else

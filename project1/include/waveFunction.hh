@@ -17,10 +17,10 @@ class WaveFunction
 public:
     const std::vector<double> &getParameters() { return parameters_; }
 
-    void setState(const ParticleSystem<N, d> &particleSystem);
+    bool setState(const ParticleSystem<N, d> &particleSystem);
     inline ParticleSystem<N, d> &getState();
 
-    virtual void pertubateState(size_t idx, double magnitude, Random &random) = 0;
+    virtual bool pertubateState(size_t idx, double magnitude, Random &random) = 0;
     virtual void updateFrom(WaveFunction<N, d> &waveFunction, size_t idx) = 0;
 
     double evaluate(const ParticleSystem<N, d> &particleSystem);
@@ -50,7 +50,7 @@ protected:
 };
 
 template <size_t N, size_t d>
-inline void WaveFunction<N, d>::setState(const ParticleSystem<N, d> &particleSystem)
+inline bool WaveFunction<N, d>::setState(const ParticleSystem<N, d> &particleSystem)
 {
     state_ = particleSystem;
 
@@ -58,6 +58,8 @@ inline void WaveFunction<N, d>::setState(const ParticleSystem<N, d> &particleSys
     qForce_.reset();
     logGrad_.reset();
     localEnergy_.reset();
+
+    return true;
 }
 
 template <size_t N, size_t d>

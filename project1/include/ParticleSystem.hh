@@ -12,10 +12,10 @@ template <size_t N, size_t d>
 class ParticleSystem
 {
 public:
-    ParticleSystem(double a, double m, double boxSize) : m_(m), a_(a)
+    ParticleSystem(double a, double boxSize) :a_(a)
     {
         assert(N > 0 && d > 0);
-        assert(a >= 0 && m >= 0);
+        assert(a >= 0);
 
         Random random;
 
@@ -25,7 +25,7 @@ public:
 
             for (size_t j = 0; j < d; j++)
             {
-                position[j] = random.nextDouble(0, boxSize);
+                position[j] = random.nextDouble(-0.5*boxSize, 0.5*boxSize);
             }
 
             particles_[i] = Particle<d>(position);
@@ -47,11 +47,6 @@ public:
         return a_;
     }
 
-    inline double getMass() const
-    {
-        return m_;
-    }
-
     inline void setAt(size_t idx, const Particle<d> &other)
     {
         particles_[idx] = other;
@@ -64,6 +59,5 @@ public:
 
 private:
     std::array<Particle<d>, N> particles_;
-    double m_;
     double a_;
 };
