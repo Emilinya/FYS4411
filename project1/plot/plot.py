@@ -3,12 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_w_std(ax, xs, ys, stds, label, color, alpha=0.4):
+def plot_w_std(ax, xs, ys, stds, label, color, alpha=0.4, marker=".", linestyle="-"):
     ax.fill_between(
         xs, ys - stds, ys + stds,
         color=color, alpha=alpha, edgecolor=color
     )
-    ax.plot(xs, ys, ".-", color=color, label=label, markersize=4)
+    ax.plot(
+        xs, ys, color=color, label=label,
+        markersize=4, linestyle=linestyle,
+        marker=marker
+    )
 
 
 def E_anal(alpha, N, d):
@@ -42,8 +46,8 @@ def plot_part(axs, data, N, d):
 
 
 def comp_E(N, d):
-    met_data = np.loadtxt(f"data/d{d}N{N}_met.dat").T
-    methas_data = np.loadtxt(f"data/d{d}N{N}_methas.dat").T
+    met_data = np.loadtxt(f"data/full/d{d}N{N}_met.dat").T
+    methas_data = np.loadtxt(f"data/full/d{d}N{N}_methas.dat").T
 
     fig, axs = plt.subplots(
         2, 2, tight_layout=True, sharex=True, sharey='row',
@@ -55,9 +59,9 @@ def comp_E(N, d):
     plot_part(methas_axs, methas_data, N, d)
 
     met_axs[0].set_ylabel(
-        "$\\bar{{E}}$ [$\\hbar\\omega_{{ho}}$]")
+        "$\\left<{{E}}\\right>$ [$\\hbar\\omega_{{ho}}$]")
     met_axs[1].set_ylabel(
-        "$\\frac{{d\\bar{{E}}}}{{d\\alpha}}$ [$\\hbar\\omega_{{ho}}$]")
+        "$\\frac{{d\\left<{{E}}\\right>}}{{d\\alpha}}$ [$\\hbar\\omega_{{ho}}$]")
 
     met_axs[1].set_xlabel("$\\alpha$ []")
     methas_axs[1].set_xlabel("$\\alpha$ []")
@@ -69,26 +73,19 @@ def comp_E(N, d):
     met_axs[1].locator_params(axis='both', nbins=6)
     methas_axs[1].locator_params(axis='x', nbins=6)
 
-    # the met gradient can become very large, crop y-axis in that case to better showcase methas
-    _, max_y = met_axs[1].get_ylim()
-    min_met_y = np.min(met_data[3])
-    min_anal_y = np.min(grad_E_anal(met_data[0], N, d))
-    if min_met_y < 2*min_anal_y:
-        met_axs[1].set_ylim(2*min_anal_y, max_y)
-
     plt.suptitle(
         f"Comparison between numeric and analytic results (d={d}, N={N})")
-    plt.savefig(f"plot/d{d}N{N}.png", dpi=200)
+    plt.savefig(f"plot/full/d{d}N{N}.png", dpi=200)
     plt.close(fig)
 
 
 def grad_comp_E(N, d, isEliptical=False):
     if isEliptical:
         alpha_ray, E_num_ray, E_err_ray = np.loadtxt(
-            f"data/eliptical_d{d}N{N}_methas.dat").T
+            f"data/grad/eliptical_d{d}N{N}_methas.dat").T
     else:
         alpha_ray, E_num_ray, E_err_ray = np.loadtxt(
-            f"data/grad_d{d}N{N}_methas.dat").T
+            f"data/grad/d{d}N{N}_methas.dat").T
 
     maxDiff = np.max(np.abs(alpha_ray-0.5))
     hq_alpha_ray = np.linspace(0.5-maxDiff, 0.5+maxDiff, 100)
@@ -98,25 +95,47 @@ def grad_comp_E(N, d, isEliptical=False):
 
     if not isEliptical:
         plt.plot(hq_alpha_ray, E_anal(hq_alpha_ray, N, d), "k")
-    plot_w_std(plt, alpha_ray, E_num_ray, E_err_ray, "numeric", colors[0])
+        plot_w_std(plt, alpha_ray, E_num_ray, E_err_ray, "", colors[0])
+    else:
+        avg_E = np.average(E_num_ray, weights=1/E_err_ray)
+        std_E = np.std(E_num_ray)
+
+        idxs = np.where(np.abs(E_num_ray - avg_E) < std_E)
+
+        plt.scatter(alpha_ray[idxs], E_num_ray[idxs], c=E_err_ray[idxs])
+        plt.colorbar(label="$\\sigma_{{\\left<{{E}}\\right>}}$")
+
+        min_E = np.average(E_num_ray[idxs][-10:], weights=1/E_err_ray[idxs][-10:])
+        opt_alpha = np.average(alpha_ray[idxs][-10:], weights=1/E_err_ray[idxs][-10:])
+        plt.axhline(min_E, color="k", linestyle="--")
+        plt.axvline(opt_alpha, color="k", linestyle="--")
+
+    plt.xlabel("$\\alpha$ []")
+    plt.ylabel("$\\left<{{E}}\\right>$ [$\\hbar\\omega_{{ho}}$]")
 
     if isEliptical:
-        plt.savefig(f"plot/eliptical_d{d}N{N}.png", dpi=200)
+        plt.savefig(f"plot/grad/eliptical_d{d}N{N}.png", dpi=200)
     else:
-        plt.savefig(f"plot/grad_d{d}N{N}.png", dpi=200)
+        plt.savefig(f"plot/grad/d{d}N{N}.png", dpi=200)
     plt.close()
 
 
-def calibrate_comp_E(Nd_pairs, mctype):
+def calibrate_comp_E(mctype):
     plt.figure(tight_layout=True)
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    linestyles = ["-", "--"]
 
     min_mags = []
-    Nds = []
+    min_diffs = []
+
+    Nd_pairs = []
+    for N in [1, 10, 100, 500]:
+        for d in [1, 2, 3]:
+            Nd_pairs.append((N, d))
 
     for i, (N, d) in enumerate(Nd_pairs):
         magnitude_ray, E_diff_ray, E_err_ray = np.loadtxt(
-            f"data/calibrate_d{d}N{N}_{mctype}.dat").T
+            f"data/calibrate/d{d}N{N}_{mctype}.dat").T
 
         sort_idxs = np.argsort(magnitude_ray)
         magnitude_ray = magnitude_ray[sort_idxs]
@@ -126,38 +145,48 @@ def calibrate_comp_E(Nd_pairs, mctype):
         min_idx = np.argmin(E_diff_ray)
         min_E_diff = E_diff_ray[min_idx]
         min_mag = magnitude_ray[min_idx]
-        plot_w_std(plt, magnitude_ray, E_diff_ray, E_err_ray, f"d{d}N{N}", colors[i], alpha=0.02)
-        plt.plot(min_mag, min_E_diff, "o", color=colors[i])
+        plot_w_std(
+            plt, magnitude_ray, E_diff_ray, E_err_ray, f"d{d}N{N}",
+            colors[i//2], alpha=0, linestyle=linestyles[i%2]
+        )
+        plt.plot(min_mag, min_E_diff, "o", color=colors[i//2])
         plt.plot(min_mag, min_E_diff, ".k")
 
         min_mags.append(min_mag)
-        Nds.append(N*d)
-    plt.legend()
+        min_diffs.append(min_E_diff)
+    plt.legend(ncol=2)
 
-    plt.xscale("log")
     plt.yscale("log")
 
     if mctype == "met":
         plt.xlabel("stepsize []")
     else:
         plt.xlabel("timestep []")
-    plt.ylabel(
-        "$\\left<\\frac{{ E_{{num}} - E_{{anal}} }}{{ E_{{anal}} }}\\right>$ []")
+    plt.ylabel("$\\left<\\frac{{ E_{{num}} - E_{{anal}} }}{{ E_{{anal}} }}\\right>$ []")
 
-    plt.savefig(f"plot/calibrate_{mctype}.png", dpi=200)
+    plt.savefig(f"plot/calibrate/{mctype}.png", dpi=200)
     plt.clf()
 
+    plt.scatter(min_mags, min_diffs, c=np.arange(len(min_mags)))
+    plt.yscale("log")
 
-    plt.plot(Nds, min_mags, ".-")
+    ymin, ymax = plt.ylim()
+    ycenter = np.exp((np.log(ymax) + np.log(ymin))/2)
+
+    optimal_magnitude = min_mags[np.argmin(min_diffs)]
     if mctype == "met":
-        plt.plot([Nds[0], Nds[-1]], [4., 4.], "k--")
-        plt.ylabel("stepsize []")
+        plt.axvline(optimal_magnitude, color="k", linestyle="--", label="Chosen stepsize")
+        plt.text(optimal_magnitude*1.01, ycenter, f"{optimal_magnitude:.5f}")
+        plt.xlabel("stepsize []")
     else:
-        plt.plot([Nds[0], Nds[-1]], [0.0127, 0.0127], "k--")
-        plt.ylabel("timestep []")
+        plt.axvline(optimal_magnitude, color="k", linestyle="--", label="Chosen timestep")
+        plt.text(optimal_magnitude*1.01, ycenter, f"{optimal_magnitude:.5f}")
+        plt.xlabel("timestep []")
+    plt.ylabel("$\\left<\\frac{{ E_{{num}} - E_{{anal}} }}{{ E_{{anal}} }}\\right>$ []")
 
-    plt.xlabel("Nd []")
-    plt.savefig(f"plot/calibrate_{mctype}_mincomp.png", dpi=200)
+    plt.legend()
+
+    plt.savefig(f"plot/calibrate/{mctype}_mincomp.png", dpi=200)
 
     plt.close()
 
@@ -173,6 +202,7 @@ def plot_dist():
 
 def plot_grad():
     grad_comp_E(1, 1, False)
+    grad_comp_E(100, 2, False)
     grad_comp_E(500, 3, False)
 
     grad_comp_E(10, 3, True)
@@ -181,15 +211,14 @@ def plot_grad():
 
 
 def plot_calibrate():
-    Nd_pairs = [(1, 1), (100, 2), (500, 3)][::-1]
-    calibrate_comp_E(Nd_pairs, "met")
-    calibrate_comp_E(Nd_pairs, "methas")
+    calibrate_comp_E("met")
+    calibrate_comp_E("methas")
 
 
 def main():
-    # plot_dist()
+    plot_dist()
     plot_grad()
-    # plot_calibrate()
+    plot_calibrate()
 
 
 if __name__ == "__main__":

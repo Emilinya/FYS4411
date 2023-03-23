@@ -27,10 +27,10 @@ double calcGreensFunction(
     double expTerm = 0.0;
     for (size_t j = 0; j < d; j++)
     {
-        double factor = 0.5 * (qForceOld[idx][j] + qForceNew[idx][j]);
-        double term1 = 0.5 * D * timeStep * (qForceOld[idx][j] - qForceNew[idx][j]);
-        double term2 = posNew[j] + posOld[j];
-        expTerm += factor * (term1 - term2);
+        double factor = -0.25 * (qForceNew[idx][j] + qForceOld[idx][j]);
+        double term1 = D * timeStep * (qForceNew[idx][j] - qForceOld[idx][j]);
+        double term2 = 2. * (posNew[j] - posOld[j]);
+        expTerm += factor * (term1 + term2);
     }
 
     return exp(expTerm);

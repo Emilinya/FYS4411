@@ -55,12 +55,28 @@ void printRay(std::array<double, d> &array)
 // This function acts like np.linspace
 std::vector<double> linspace(double a, double b, size_t n)
 {
-    std::vector<double> vec;
-    vec.reserve(n);
+    std::vector<double> vec(n, 0);
+
     for (size_t i = 0; i < n; i++)
     {
         double p = (double)i / (double)(n - 1);
-        vec.push_back(a + p * (b - a));
+        vec[i] = a + p * (b - a);
+    }
+    return vec;
+}
+
+// This function acts like np.logspace
+std::vector<double> logspace(double a, double b, size_t n)
+{
+    std::vector<double> vec(n, 0);
+
+    double loga = std::log10(a);
+    double logb = std::log10(b);
+    for (size_t i = 0; i < n; i++)
+    {
+        double p = (double)i / (double)(n - 1);
+        double logv = loga + p * (logb - loga);
+        vec[i] = std::pow(10., logv);
     }
     return vec;
 }

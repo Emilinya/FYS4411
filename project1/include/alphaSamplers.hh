@@ -8,22 +8,7 @@
 #include "Random.hh"
 #include "utils.hh"
 
-template <size_t N, size_t d>
-double getMagnitude(const MCMode mode)
-{
-    if (mode == MCMode::MET)
-    {
-        // prevVal: 0.1 
-        // magnitude is stepsize
-        return 4.;
-    }
-    else
-    {
-        // prevVal: 0.005
-        // magnitude is timestep
-        return 0.0127;
-    }
-}
+#include <string.h>
 
 struct SamplerArgs
 {
@@ -35,15 +20,20 @@ struct SamplerArgs
 
 template <size_t N, size_t d>
 void alphaSampler(
-    std::vector<double> &alphaVec, const MCMode mode, SamplerArgs args,
-    size_t mcCycleCount, size_t walkerCount, std::string filename)
+    std::vector<double> &alphaVec, const MCMode mode, double magnitude,
+    SamplerArgs args, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t cycleCount = mcCycleCount;
+    size_t cycleCount = mcCycleCount / std::sqrt(N);
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
-    std::ofstream dataFile;
+    std::ofstream dataFile(filename);
+    if (!dataFile)
+    {
+        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        exit(0);
+    }
+
     dataFile.precision(14);
-    dataFile.open(filename);
     for (size_t i = 0; i < alphaVec.size(); i++)
     {
         rprint("  " << i + 1 << "/" << alphaVec.size());
@@ -52,13 +42,13 @@ void alphaSampler(
         if (std::isnan(args.beta))
         {
             out = mcSampler<N, d>(
-                mode, getMagnitude<N, d>(mode), cycleCount, cycleCount / 100,
+                mode, magnitude, cycleCount, cycleCount / 100,
                 walkerCount, args.a, args.stateSize, alphaVec[i]);
         }
         else
         {
             out = mcSampler<N>(
-                mode, getMagnitude<N, 3>(mode), cycleCount, cycleCount / 100,
+                mode, magnitude, cycleCount, cycleCount / 100,
                 walkerCount, args.a, args.stateSize, alphaVec[i], args.beta, args.gamma);
         }
 
@@ -71,20 +61,25 @@ void alphaSampler(
 
 template <size_t N, size_t d>
 void gradAlphaSampler(
-    double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
+    double alpha0, double learningRate, size_t maxSteps, const MCMode mode, double magnitude,
     SamplerArgs args, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
     if (!std::isnan(args.beta)) {
         assert(d == 3);
     }
 
-    size_t cycleCount = mcCycleCount / 100;
+    size_t cycleCount = mcCycleCount / std::sqrt(N) / 100;
     double cycleFactor = std::pow(100, 1./(double)maxSteps);
 
     std::cout << "N=" << N << ", d=" << d << std::endl;
-    std::ofstream dataFile;
+    std::ofstream dataFile(filename);
+    if (!dataFile)
+    {
+        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        exit(0);
+    }
+
     dataFile.precision(14);
-    dataFile.open(filename);
 
     double moment = 0;
     double decay = 0.9;
@@ -96,24 +91,23 @@ void gradAlphaSampler(
     double alpha = alpha0;
     for (size_t i = 0; i < maxSteps; i++)
     {
-        rprint("  "
-               << "i = " << i + 1 << ", alpha = "
-               << alpha << ", grad = " << grad);
-
         MCSamplerOut out;
         if (std::isnan(args.beta))
         {
             out = mcSampler<N, d>(
-                mode, getMagnitude<N, d>(mode), cycleCount, cycleCount / 100,
+                mode, magnitude, cycleCount, cycleCount / 100,
                 walkerCount, args.a, args.stateSize, alpha);
         }
         else
         {
             out = mcSampler<N>(
-                mode, getMagnitude<N, 3>(mode), cycleCount, cycleCount / 100,
+                mode, magnitude, cycleCount, cycleCount / 100,
                 walkerCount, args.a, args.stateSize, alpha, args.beta, args.gamma);
         }
         grad = out.gradE[0];
+
+        printf("\r  i=%ld, alpha=%.8f, grad=%.8g                    ", i+1, alpha, grad);
+        std::fflush(stdout);
 
         dataFile << alpha << " " << out.E << " " << out.stdE << "\n";
 
@@ -132,7 +126,7 @@ void gradAlphaSampler(
 
         cycleCount = (size_t)(cycleCount*cycleFactor);
     }
-    print("\n  Best alpha:", bestAlpha, ", with grad=", minGrad);
+    printf("\n  Best alpha: %.8f, with grad=%.8g\n", bestAlpha, minGrad);
 
     dataFile.close();
 }
@@ -141,13 +135,17 @@ template <size_t N, size_t d>
 double calibrateMagnitude(
     std::vector<double> &alphaVec, const MCMode mode, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
-    size_t trueCycleCount = mcCycleCount;
-    size_t burnCycleCount = trueCycleCount / 100;
-    double initialMagnitude = 1;
+    size_t cycleCount = mcCycleCount / std::sqrt(N);
 
-    std::ofstream dataFile;
+    std::ofstream dataFile(filename);
+    if (!dataFile)
+    {
+        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        exit(0);
+    }
+
+
     dataFile.precision(14);
-    dataFile.open(filename);
     std::cout << "N=" << N << ", d=" << d << std::endl;
 
     auto getDiff = [&](double magnitude)
@@ -160,7 +158,7 @@ double calibrateMagnitude(
         for (auto &alpha : alphaVec)
         {
             MCSamplerOut out = mcSampler<N, d>(
-                mode, magnitude, trueCycleCount, burnCycleCount, walkerCount, 0, 1, alpha);
+                mode, magnitude, cycleCount, cycleCount / 100, walkerCount, 0, 1, alpha);
             double analVal = (double)(d*N) * 0.5 * (alpha + 1. / (4. * alpha));
 
             avgDiff += std::abs(out.E - analVal) / analVal;
@@ -175,6 +173,7 @@ double calibrateMagnitude(
         return avgDiff;
     };
 
+    double initialMagnitude = 1;
     double initialDiff = getDiff(initialMagnitude);
     double halfDiff = getDiff(0.5 * initialMagnitude);
     double doubleDiff = getDiff(2.0 * initialMagnitude);
