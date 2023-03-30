@@ -29,7 +29,7 @@ void alphaSampler(
     std::ofstream dataFile(filename);
     if (!dataFile)
     {
-        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        std::cerr << "Error opening " + filename + ": " << strerror(errno) << std::endl;
         exit(0);
     }
 
@@ -60,7 +60,7 @@ void alphaSampler(
 }
 
 template <size_t N, size_t d>
-void gradAlphaSampler(
+double gradAlphaSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode, double magnitude,
     SamplerArgs args, size_t mcCycleCount, size_t walkerCount, std::string filename)
 {
@@ -75,7 +75,7 @@ void gradAlphaSampler(
     std::ofstream dataFile(filename);
     if (!dataFile)
     {
-        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        std::cerr << "Error opening " + filename + ": " << strerror(errno) << std::endl;
         exit(0);
     }
 
@@ -129,6 +129,8 @@ void gradAlphaSampler(
     printf("\n  Best alpha: %.8f, with grad=%.8g\n", bestAlpha, minGrad);
 
     dataFile.close();
+
+    return bestAlpha;
 }
 
 template <size_t N, size_t d>
@@ -140,7 +142,7 @@ double calibrateMagnitude(
     std::ofstream dataFile(filename);
     if (!dataFile)
     {
-        std::cerr << "Error opening datafile: " << strerror(errno) << std::endl;
+        std::cerr << "Error opening " + filename + ": " << strerror(errno) << std::endl;
         exit(0);
     }
 

@@ -46,7 +46,8 @@ MCStepOut mcStep(
     for (size_t i = 0; i < N; i++)
     {
         // perturbateState returns false if new state is impossible (particles are colliding)
-        if (waveFunctionNew.pertubateState(i, magnitude, random)) {
+        if (waveFunctionNew.pertubateState(i, magnitude, random))
+        {
             double wfOld = waveFunctionOld.evaluate();
             double wfNew = waveFunctionNew.evaluate();
 
@@ -78,11 +79,19 @@ MCStepOut mcStep(
 template <size_t N, size_t d>
 MCSamplerOut mcSampler(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,
-    size_t walkerCount, double diameter, double stateSize, double alpha)
+    size_t walkerCount, double diameter, double stateSize, double alpha,
+    const bool saveSamples = false, std::string sampleFileName = "")
 {
     std::vector<double> energies(walkerCount, 0);
     std::vector<double> gradMuls(walkerCount, 0);
     std::vector<double> gradients(walkerCount, 0);
+
+    std::vector<std::vector<double>> samples;
+    if (saveSamples)
+    {
+        samples = std::vector<std::vector<double>>(
+            walkerCount, std::vector<double>(mcCycleCount, 0));
+    }
 
     #pragma omp parallel for
     for (size_t i = 0; i < walkerCount; i++)
@@ -109,6 +118,10 @@ MCSamplerOut mcSampler(
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
             MCStepOut out = mcStep<N, d, SphericalWF<N, d>>(magnitude, waveFunction, mode, random);
+            if (saveSamples)
+            {
+                samples[i][mcCycle] = out.E;
+            }
 
             energy += out.E;
             gradient += out.logGrad[0];
@@ -127,8 +140,36 @@ MCSamplerOut mcSampler(
         energyGrads[i] = 2 * (gradMuls[i] - gradients[i] * energies[i]);
     }
 
+    /*
+    both calcMeanStd and vectorCalcMeanStd calculate the standard deviation
+    of the samples, not the standard deviation of the means. This means that
+    the uncertanties are sqrt(walkerCount) too large. I did not notice this
+    until I had ran all the calculations, so instead of fixing it here,
+    I fixed it in the plotting program.
+    */
     auto energyTouple = calcMeanStd(energies);
     auto gradTouple = calcMeanStd(energyGrads);
+
+    if (saveSamples)
+    {
+        std::ofstream dataFile(sampleFileName);
+        if (!dataFile)
+        {
+            std::cerr << "Error opening " + sampleFileName + ": " << strerror(errno) << std::endl;
+            exit(0);
+        }
+
+        dataFile.precision(14);
+        for (size_t j = 0; j < mcCycleCount; j++)
+        {
+            for (size_t i = 0; i < walkerCount; i++)
+            {
+                dataFile << samples[i][j] << " ";
+            }
+            dataFile << "\n";
+        }
+        dataFile.close();
+    }
 
     return {
         std::get<0>(energyTouple),
@@ -142,11 +183,19 @@ MCSamplerOut mcSampler(
 template <size_t N>
 MCSamplerOut mcSampler(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,
-    size_t walkerCount, double diameter, double stateSize, double alpha, double beta, double gamma)
+    size_t walkerCount, double diameter, double stateSize, double alpha, double beta,
+    double gamma, const bool saveSamples = false, std::string sampleFileName = "")
 {
     std::vector<double> energies(walkerCount, 0);
     std::vector<std::vector<double>> gradMuls(walkerCount, std::vector<double>(2, 0));
     std::vector<std::vector<double>> gradients(walkerCount, std::vector<double>(2, 0));
+
+    std::vector<std::vector<double>> samples;
+    if (saveSamples)
+    {
+        samples = std::vector<std::vector<double>>(
+            walkerCount, std::vector<double>(mcCycleCount, 0));
+    }
 
     #pragma omp parallel for
     for (size_t i = 0; i < walkerCount; i++)
@@ -162,11 +211,11 @@ MCSamplerOut mcSampler(
         {
             // generated state might be impossible. In that case, try again.
             ParticleSystem<N, 3> state(diameter, stateSize);
-            if(waveFunction.setState(state)) {
+            if (waveFunction.setState(state))
+            {
                 break;
             };
         }
-        
 
         // evaluate once so value is copied to the wave function copy
         waveFunction.evaluate();
@@ -180,6 +229,10 @@ MCSamplerOut mcSampler(
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
             MCStepOut out = mcStep<N, 3, ElipticalWF<N>>(magnitude, waveFunction, mode, random);
+            if (saveSamples)
+            {
+                samples[i][mcCycle] = out.E;
+            }
 
             energy += out.E;
 
@@ -205,8 +258,36 @@ MCSamplerOut mcSampler(
         energyGrads[i][1] = 2 * (gradMuls[i][1] - gradients[i][1] * energies[i]);
     }
 
+    /*
+    both calcMeanStd and vectorCalcMeanStd calculate the standard deviation
+    of the samples, not the standard deviation of the means. This means that
+    the uncertanties are sqrt(walkerCount) too large. I did not notice this
+    until I had ran all the calculations, so instead of fixing it here,
+    I fixed it in the plotting program.
+    */
     auto energyTouple = calcMeanStd(energies);
     auto gradTouple = vectorCalcMeanStd(energyGrads);
+
+    if (saveSamples)
+    {
+        std::ofstream dataFile(sampleFileName);
+        if (!dataFile)
+        {
+            std::cerr << "Error opening " + sampleFileName + ": " << strerror(errno) << std::endl;
+            exit(0);
+        }
+
+        dataFile.precision(14);
+        for (size_t j = 0; j < mcCycleCount; j++)
+        {
+            for (size_t i = 0; i < walkerCount; i++)
+            {
+                dataFile << samples[i][j] << " ";
+            }
+            dataFile << "\n";
+        }
+        dataFile.close();
+    }
 
     return {
         std::get<0>(energyTouple),
