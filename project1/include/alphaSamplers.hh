@@ -18,6 +18,7 @@ struct SamplerArgs
     double gamma = std::nan("");
 };
 
+// calculate energy and gradient for alpha values in alphaVec, and save to file
 template <size_t N, size_t d>
 void alphaSampler(
     std::vector<double> &alphaVec, const MCMode mode, double magnitude,
@@ -59,6 +60,7 @@ void alphaSampler(
     dataFile.close();
 }
 
+// calculate minimum using gradient descent, and save descent steps to a file
 template <size_t N, size_t d>
 double gradAlphaSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode, double magnitude,
@@ -133,6 +135,8 @@ double gradAlphaSampler(
     return bestAlpha;
 }
 
+// use a binary search inspired alogrithm to find the magnitude that minimizes the mean
+// relative differences for all the alpha values in alphaVec
 template <size_t N, size_t d>
 double calibrateMagnitude(
     std::vector<double> &alphaVec, const MCMode mode, size_t mcCycleCount, size_t walkerCount, std::string filename)
@@ -150,6 +154,7 @@ double calibrateMagnitude(
     dataFile.precision(14);
     std::cout << "N=" << N << ", d=" << d << std::endl;
 
+    // getDiff returns the mean realtive difference, and saves the results to dataFile
     auto getDiff = [&](double magnitude)
     {
         std::cout << "  " << magnitude;
@@ -187,13 +192,15 @@ double calibrateMagnitude(
 
     if (initialDiff < halfDiff && initialDiff < doubleDiff)
     {
-        // The initial magnitude was optimal
+        // neither halving or doubling the magnitude improved results.
+        // here we should really change the scale factor from 2 to a smaller
+        // value and try again, but I did not think about that - oops
         dataFile.close();
         return initialMagnitude;
     }
     else if (halfDiff < doubleDiff)
     {
-        // halving it improved the result, try halving it more
+        // halving the magnitude improved the result, try halving it more
         double magnitude = 0.5 * initialMagnitude;
         diff = halfDiff;
         while (true)
@@ -212,14 +219,13 @@ double calibrateMagnitude(
             }
         }
 
-        // We now know the region where the optimal value lies
         left = magnitude / 2;
         right = magnitude;
         didDouble = false;
     }
     else
     {
-        // doubling it improved the result, try doubling it more
+        // doubling the magnitude improved the result, try doubling it more
         double magnitude = 2. * initialMagnitude;
         diff = doubleDiff;
         while (true)
@@ -252,6 +258,7 @@ double calibrateMagnitude(
     {
         if (midDiff < diff)
         {
+            // test left and right of mid (first and third quarter)
             double q1 = (left + mid) * 0.5;
             double q3 = (mid + right) * 0.5;
 
@@ -260,17 +267,20 @@ double calibrateMagnitude(
 
             if (midDiff < q1Diff && midDiff < q3Diff)
             {
+                // left and right are worse, we reached a minimum
                 dataFile.close();
                 return mid;
             }
             else if (q1Diff < q3Diff)
             {
+                // right is better
                 right = mid;
                 mid = q1;
                 midDiff = q1Diff;
             }
             else
             {
+                // left is better
                 left = mid;
                 mid = q3;
                 midDiff = q3Diff;

@@ -75,7 +75,8 @@ MCStepOut mcStep(
     };
 }
 
-// Monte Carlo sampling with the Metropolis or Metropolis-Hastings algorithm
+// Monte Carlo sampling of the spherical wave function using
+// the Metropolis or Metropolis-Hastings algorithm
 template <size_t N, size_t d>
 MCSamplerOut mcSampler(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,
@@ -179,7 +180,8 @@ MCSamplerOut mcSampler(
     };
 }
 
-// Monte Carlo sampling, now with ElipticalWF
+// Monte Carlo sampling of the elliptical wave function using
+// the Metropolis or Metropolis-Hastings algorithm
 template <size_t N>
 MCSamplerOut mcSampler(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount,

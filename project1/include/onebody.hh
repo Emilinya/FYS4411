@@ -1,6 +1,7 @@
 #include "mcSampler.hh"
 #include "omp.h"
 
+// function to calculate the one-body densities of the elliptical wave function
 template <size_t N>
 void onebodyCalculator(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t burnCycleCount, size_t walkerCount,
@@ -40,6 +41,7 @@ void onebodyCalculator(
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
+            // only one thread should print
             if (thread_id == 0) {
                 size_t next_pro = 1000 * (mcCycle + 1) / mcCycleCount;
                 size_t curr_pro = 1000 * mcCycle / mcCycleCount;
@@ -66,6 +68,7 @@ void onebodyCalculator(
     }
     print("\r100/100    ");
 
+    // combine x counts from all walkers
     std::vector<size_t> combiXCounts(nbins, 0);
     for (size_t j = 0; j < walkerCount; j++)
     {
@@ -75,6 +78,7 @@ void onebodyCalculator(
         }
     }
 
+    // calculate the uncertanties (this is unneccesary, but oh well)
     std::vector<double> xcountUncertanties(nbins, 0);
     for (size_t i = 0; i < nbins; i++)
     {

@@ -7,6 +7,7 @@
 #include "Particle.hh"
 #include "WaveFunction.hh"
 
+// the spherical wavefunction assumes that the hard-core diameter a=0
 template <size_t N, size_t d>
 class SphericalWF : public WaveFunction<N, d>
 {
@@ -42,6 +43,7 @@ bool SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
 
     ParticleSystem<N, d> &system = this->state_.value();
 
+    // adjust position of particle at index idx
     Particle<d> particleCopy = system[idx];
     for (size_t j = 0; j < d; j++)
     {
@@ -58,10 +60,12 @@ bool SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
         }
     }
 
+    // update value
     double prevValue = evaluate();
     double distDiff = particleCopy.getSquaredDistance() - system[idx].getSquaredDistance();
     this->value_ = prevValue * std::exp(-alpha_ * distDiff);
 
+    // update quantum force
     if (mode_ == MCMode::METHAS)
     {
         QForceMat<N, d> &qForce = computeQForce();
@@ -74,9 +78,13 @@ bool SphericalWF<N, d>::pertubateState(size_t idx, double magnitude, Random &ran
     }
 
     system.setAt(idx, particleCopy);
+
+    // we only calculate the local energy and gradient once per MC cycle, so
+    // we don't need to efficiently calculate them here
     this->localEnergy_.reset();
     this->logGrad_.reset();
 
+    // there are no impossible states for the spherical wavefunction
     return true;
 }
 
@@ -94,8 +102,6 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
     thisState.setAt(idx, otherState[idx]);
 
     this->value_ = waveFunction.getValue();
-    this->localEnergy_.reset();
-    this->logGrad_.reset();
 
     if (this->mode_ == MCMode::METHAS)
     {
@@ -116,6 +122,11 @@ void SphericalWF<N, d>::updateFrom(WaveFunction<N, d> &waveFunction, size_t idx)
             this->qForce_.reset();
         }
     }
+
+    // we don't want to trust that waveFunction has correctly calculated these values,
+    // so we just reset them to be safe.
+    this->localEnergy_.reset();
+    this->logGrad_.reset();
 }
 
 template <size_t N, size_t d>

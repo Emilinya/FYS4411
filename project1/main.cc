@@ -6,6 +6,7 @@
 #include "alphaSamplers.hh"
 #include "onebody.hh"
 
+// function that runs calibrateMagnirude for d∈{1, 2, 3} and N∈{1, 10, 100, 500}, for the spherical WF
 void multiCalibrator(
     std::vector<double> &alphaVec, const MCMode mode,
     size_t mcCycleCount, size_t walkerCount)
@@ -61,6 +62,7 @@ void multiCalibrator(
         walkerCount, "data/calibrate/d3N500_" + modeStr + ".dat");
 }
 
+// function that runs alphaSampler for N∈{1, 10, 100, 500}, for the spherical WF
 template <size_t d>
 void multiSampler(
     std::vector<double> &alphaVec, const MCMode mode,
@@ -85,6 +87,7 @@ void multiSampler(
     alphaSampler<500, d>(alphaVec, mode, magnitude, args, mcCycleCount, walkerCount, s1 + "500" + s2);
 }
 
+// function that runs gradAlphaSampler for (d,N)∈{(1,1), (2, 100), (3, 500)}, for the spherical WF
 void gradMultiSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
     double magnitude, size_t mcCycleCount, size_t walkerCount)
@@ -111,6 +114,7 @@ void gradMultiSampler(
         mcCycleCount, walkerCount, "data/grad/d3N500_" + modeStr);
 }
 
+// function that runs mcSampler for (d,N)∈{(1,1), (2, 100), (3, 500)}, for the spherical WF
 void multiSampleSaver(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t walkerCount)
 {
@@ -140,6 +144,7 @@ void multiSampleSaver(
         args.a, args.stateSize, 0.4, true, "data/samples/d3N500_" + modeStr);
 }
 
+// function that runs gradAlphaSampler for (d,N)∈{(3,10), (3, 50), (3, 100)}, for the ellipitcal WF
 void elipticalMultiSampler(
     double alpha0, double learningRate, size_t maxSteps, const MCMode mode,
     double magnitude, size_t mcCycleCount, size_t walkerCount)
@@ -173,6 +178,7 @@ void elipticalMultiSampler(
         mcCycleCount, walkerCount, s1 + "100" + s2);
 }
 
+// function that runs mcSampler for (d,N)∈{(3,10), (3, 50), (3, 100)}, for the ellipitcal WF
 void elipticalMultiSampleSaver(
     const MCMode mode, double magnitude, size_t mcCycleCount, size_t walkerCount)
 {
@@ -209,6 +215,7 @@ void elipticalMultiSampleSaver(
         opt_alpha_list[2], args.beta, args.gamma, true, "data/samples/eliptical_d3N100_" + modeStr);
 }
 
+// function that runs onebodyCalculator for N∈{10, 50, 100}, for the ellipitcal WF with and without interactions
 void multiOnebodyCalculator(double optimalTimeStep, size_t mcCycleCount, size_t walkercount)
 {
     SamplerArgs args{

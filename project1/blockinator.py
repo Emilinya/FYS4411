@@ -1,5 +1,6 @@
 import numpy as np 
 
+# analytical mean energy
 def E_anal(alpha, N, d):
     return d*N*(alpha + 1/(4*alpha))/2
 
@@ -42,6 +43,7 @@ def block(x):
         print("Warning: Use more data")
     return mu, np.sqrt(s[k]/2**(d-k))
 
+# standard deviation of the mean of the means
 def calc_mystd(data):
     means = np.mean(data, axis=0)
 

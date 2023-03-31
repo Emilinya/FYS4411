@@ -8,6 +8,8 @@
 
 #include <armadillo>
 
+// define structs and type definitions
+
 template <size_t N, size_t d>
 using QForceMat = std::array<std::array<double, d>, N>;
 
@@ -36,6 +38,7 @@ struct MCSamplerOut
     std::vector<double> stdGradE;
 };
 
+// function that prints the values in an array
 template <size_t d>
 void printRay(std::array<double, d> &array)
 {
@@ -52,7 +55,7 @@ void printRay(std::array<double, d> &array)
     std::cout << array[d - 1] << ")\n";
 }
 
-// This function acts like np.linspace
+// this function acts like np.linspace
 std::vector<double> linspace(double a, double b, size_t n)
 {
     std::vector<double> vec(n, 0);
@@ -65,7 +68,7 @@ std::vector<double> linspace(double a, double b, size_t n)
     return vec;
 }
 
-// This function acts like np.logspace
+// this function acts like np.logspace
 std::vector<double> logspace(double a, double b, size_t n)
 {
     std::vector<double> vec(n, 0);
@@ -82,6 +85,7 @@ std::vector<double> logspace(double a, double b, size_t n)
 }
 
 // function to calculate mean and std of a vector
+// note: does not calculate the standard deviation of the mean (oops)
 std::tuple<double, double> calcMeanStd(std::vector<double> &vals)
 {
     double mean = 0;
@@ -102,7 +106,8 @@ std::tuple<double, double> calcMeanStd(std::vector<double> &vals)
     return {mean, std};
 }
 
-// function to calculate mean and std of a vector of vectors
+// function to calculate mean and std for each vector in a vector of vectors
+// note: does not calculate the standard deviation of the mean (oops)
 std::tuple<std::vector<double>, std::vector<double>>
 vectorCalcMeanStd(const std::vector<std::vector<double>> &vals)
 {
@@ -171,6 +176,7 @@ inline void print(T arg, Rest... rest)
     print(rest...);
 }
 
+// print with \\r
 #define rprint(stuff) std::cerr << "\r" << stuff << "          "
 
 // string formatting from https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
@@ -188,6 +194,7 @@ std::string string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1);
 }
 
+// create a nice time string from time in milliseconds
 std::string prettify_ms(double ms)
 {
     if (ms > 1000.)
@@ -220,9 +227,9 @@ std::string prettify_ms(double ms)
     }
 }
 
+// This is a timer class to simplify timing
 class Timer
 {
-    // This is a timer class to simplify timing (especially removing all those long type declarations)
 public:
     Timer();
     double get_ms();

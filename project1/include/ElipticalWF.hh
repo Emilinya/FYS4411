@@ -24,6 +24,9 @@ public:
         }
         else
         {
+            // this breaks when alpha=0.5. This is just an artifact of the way I combined things,
+            // in the expression for the local energy, in reality, having alpha=0.5 is no problem.
+            // Luckily we use beta == gamma, so I don't need to worry about fixing this 
             Gamma_ = (gamma_ * gamma_ - 4. * (alpha_ * alpha_) * (beta_ * beta_)) / (1. - 4. * alpha_ * alpha_);
         }
 
@@ -230,6 +233,7 @@ bool ElipticalWF<N>::pertubateState(size_t idx, double magnitude, Random &random
     }
 
     system.setAt(idx, particleCopy);
+
     this->localEnergy_.reset();
     this->logGrad_.reset();
 
@@ -249,7 +253,11 @@ void ElipticalWF<N>::updateFrom(WaveFunction<N, 3> &waveFunction, size_t idx)
     auto &newPos = newParticle.getPosition();
 
     thisState.setAt(idx, newParticle);
-    double a = thisState.getDiameter();
+
+    // we don't need to see if the new state is possible, as waveFunction
+    // is identical to this, with the exception of the one particle we now copy.
+    // This is not quaranteed, just a result of how mcSampler works - this meas
+    // that there is a potential bug here
 
     this->value_ = waveFunction.getValue();
     this->qForce_ = waveFunction.getQForce();
@@ -257,6 +265,7 @@ void ElipticalWF<N>::updateFrom(WaveFunction<N, 3> &waveFunction, size_t idx)
     this->logGrad_.reset();
 
     // update upsilon table
+    double a = thisState.getDiameter();
     for (size_t i = 0; i < N; i++)
     {
         if (i == idx)
@@ -334,7 +343,6 @@ double ElipticalWF<N>::computeLocalEnergy()
 
     ParticleSystem<N, 3> &system = this->state_.value();
 
-    // calculate local energy
     double term1 = 0;
     double term2 = 0;
 

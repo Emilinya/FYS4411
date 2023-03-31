@@ -17,10 +17,12 @@ def plot_w_std(
     )
 
 
+# analytical mean energy
 def E_anal(alpha, N, d):
     return d*N*(alpha + 1/(4*alpha))/2
 
 
+# analytical mean energy gradient
 def grad_E_anal(alpha, N, d):
     return d*N*(1 - 1/(4*alpha**2))/2
 

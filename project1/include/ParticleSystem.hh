@@ -12,6 +12,7 @@ template <size_t N, size_t d>
 class ParticleSystem
 {
 public:
+    // create system with randomly placed particles with positions∈[-boxSize/2, boxSize/2]
     ParticleSystem(double a, double boxSize) :a_(a)
     {
         assert(N > 0 && d > 0);

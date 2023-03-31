@@ -1,48 +1,48 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+# estimated pixel coordinates of data points
 points = [
     (136.5, 979), (141, 954), (145, 935), (159, 890), (181, 836), (225, 758),
     (359, 603), (581, 434), (803, 307), (1025, 202)
 ]
 
 def coord2val(coords):
-    def linprox(x, x1, x2, y1, y2):
+    def lerp(x, x1, x2, y1, y2):
         a = (y1 - y2) / (x1 - x2)
         b = (x1*y2 - x2*y1) / (x1-x2)
 
         return a*x + b
 
+    # estimated pixel coordinates with corresponding values
     tr_coords = (1025.5, 25.5)
     tr_vals = (20000, 12)
 
     bl_coords = (136.5, 1020)
     bl_vals = (0, 2)
 
+    # use linear interpolation to convert cooridinates to values
     x, y = coords
-    vx = linprox(x, bl_coords[0], tr_coords[0], bl_vals[0], tr_vals[0])
-    vy = linprox(y, bl_coords[1], tr_coords[1], bl_vals[1], tr_vals[1])
+    vx = lerp(x, bl_coords[0], tr_coords[0], bl_vals[0], tr_vals[0])
+    vy = lerp(y, bl_coords[1], tr_coords[1], bl_vals[1], tr_vals[1])
     
     return vx, vy 
 
-xs = []
-ys = []
+vs = []
 for point in points:
-    vx, vy = coord2val(point)
-    xs.append(vx)
-    ys.append(vy)
-xs = np.array(xs)
-ys = np.array(ys)
+    vs.append(coord2val(point))
+xs, ys = np.array(vs).T
 
+# create polynomial approximation
 poly = np.polynomial.Polynomial.fit(np.log(xs+20), np.log(ys), 4)
-
 def approx(x):
     return np.exp(poly(np.log(x+20)))
-approx = np.vectorize(approx)
 
+# only plot first 5 data points
 xs, ys = xs[:5], ys[:5]
 large_xs = np.linspace(np.min(xs), np.max(xs), 1000)
 
+# create figure
 plt.rcParams['font.size'] = '14'
 plt.figure(tight_layout=True)
 plt.plot(large_xs, approx(large_xs), "k--", label="approximation")

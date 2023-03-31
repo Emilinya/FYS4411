@@ -5,6 +5,7 @@
 #include <cmath>
 #include <assert.h>
 
+// The particle class is just a wrapper around an array of positions 
 template <size_t d>
 class Particle
 {
