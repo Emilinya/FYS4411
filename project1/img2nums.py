@@ -34,19 +34,24 @@ for point in points:
 xs = np.array(xs)
 ys = np.array(ys)
 
-poly = np.polynomial.Polynomial.fit(np.log(xs[1:]+100), np.log(ys[1:]), 4)
-print(poly)
+poly = np.polynomial.Polynomial.fit(np.log(xs+20), np.log(ys), 4)
+
 def approx(x):
-    return np.exp(poly(np.log(x+100)))
+    return np.exp(poly(np.log(x+20)))
 approx = np.vectorize(approx)
 
-xs, ys = xs[:4], ys[:4]
-
+xs, ys = xs[:5], ys[:5]
 large_xs = np.linspace(np.min(xs), np.max(xs), 1000)
-plt.plot(large_xs, approx(large_xs), "k--")
-plt.plot(xs, ys, "o")
-plt.savefig("temp.png")
 
-print(approx(10))
-print(approx(50))
-print(approx(100))
+plt.rcParams['font.size'] = '14'
+plt.figure(tight_layout=True)
+plt.plot(large_xs, approx(large_xs), "k--", label="approximation")
+plt.plot(xs, ys, "o", label="data")
+plt.legend()
+plt.xlabel("$N$")
+plt.ylabel(r"$\frac{E}{N}$", rotation=0, fontsize=18, labelpad=10)
+plt.savefig("plot/approximation.png", dpi=200, transparent=True)
+
+print(approx(10), abs(approx(10) - 2.4398) / approx(10) * 100)
+print(approx(50), abs(approx(50) - 2.5452) / approx(10) * 100)
+print(approx(100), abs(approx(100) - 2.6627) / approx(10) * 100)

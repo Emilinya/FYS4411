@@ -1,4 +1,5 @@
 #include "mcSampler.hh"
+#include "omp.h"
 
 template <size_t N>
 void onebodyCalculator(
@@ -14,6 +15,7 @@ void onebodyCalculator(
     #pragma omp parallel for
     for (size_t i = 0; i < walkerCount; i++)
     {
+        int thread_id = omp_get_thread_num();
         Random random;
 
         ElipticalWF<N> waveFunction(alpha, beta, gamma, mode);
@@ -38,6 +40,13 @@ void onebodyCalculator(
 
         for (size_t mcCycle = 0; mcCycle < mcCycleCount; mcCycle++)
         {
+            if (thread_id == 0) {
+                size_t next_pro = 1000 * (mcCycle + 1) / mcCycleCount;
+                size_t curr_pro = 1000 * mcCycle / mcCycleCount;
+                if (next_pro != curr_pro) {
+                    rprint(string_format("%.1f/100", (double)curr_pro/10.));
+                }
+            }
             mcStep<N, 3, ElipticalWF<N>>(magnitude, waveFunction, mode, random);
 
             ParticleSystem<N, 3> &state = waveFunction.getState();
@@ -55,6 +64,7 @@ void onebodyCalculator(
             }
         }
     }
+    print("\r100/100    ");
 
     std::vector<size_t> combiXCounts(nbins, 0);
     for (size_t j = 0; j < walkerCount; j++)
@@ -64,13 +74,23 @@ void onebodyCalculator(
             combiXCounts[i] += xcounts[j][i];
         }
     }
-    
+
+    std::vector<double> xcountUncertanties(nbins, 0);
+    for (size_t i = 0; i < nbins; i++)
+    {
+        for (size_t j = 0; j < walkerCount; j++)
+        {
+            double diff = (double)combiXCounts[i] / (double)walkerCount - (double)xcounts[j][i];
+            xcountUncertanties[i] += diff * diff;
+        }
+        xcountUncertanties[i] = std::sqrt(xcountUncertanties[i] / (double)walkerCount);
+    }
 
     // we want the integral of the onebody densities to be N
     size_t binSum = 0;
     for (auto count : combiXCounts)
     {
-        binSum += count;
+        binSum += count * binDelta;
     }
     double normFact = (double)N / (double)binSum;
 
@@ -86,7 +106,8 @@ void onebodyCalculator(
     {
         double x = i * binDelta - xsize;
         double rho = combiXCounts[i] * normFact;
-        dataFile << x << " " << rho << "\n";
+        double std = xcountUncertanties[i] * normFact;
+        dataFile << x << " " << rho << " " << std << "\n";
     }
     dataFile.close();
 }

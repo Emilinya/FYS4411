@@ -228,16 +228,21 @@ def calibrate_comp_E(mctype):
 
 def onebody_plot(N):
     plt.figure(tight_layout=True)
-    x_J, rho_J = np.loadtxt(f"data/onebody/N{N}_Jastrow.dat").T
-    x_nJ, rho_nJ = np.loadtxt(f"data/onebody/N{N}_noJastrow.dat").T
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    x_J, rho_J, err_J = np.loadtxt(f"data/onebody/N{N}_Jastrow.dat").T
+    x_nJ, rho_nJ, err_nJ = np.loadtxt(f"data/onebody/N{N}_noJastrow.dat").T
 
     max_rho = np.max(rho_J)
     idxs = np.where(rho_J > max_rho/100)
     xlim = np.max(x_J[idxs])
-    
-    plt.plot(x_J, rho_J, ".-", label="with interactions")
-    plt.plot(x_nJ, rho_nJ, ".-", label="without interactions")
+
+    plot_w_std(plt, x_J, rho_J, err_J, "with interactions", colors[0])
+    plot_w_std(plt, x_nJ, rho_nJ, err_nJ, "without interactions", colors[1])
     plt.xlim(-xlim, xlim)
+
+    _, ymax = plt.ylim()
+    plt.ylim(0, ymax)
+
     plt.xlabel("$x$ []")
     plt.ylabel(r"$\rho$ []")
     plt.title(f"N={N}")
@@ -275,11 +280,10 @@ def plot_onebody():
     onebody_plot(100)
 
 def main():
-    # plot_calibrate()
-    # plot_dist()
-    # plot_grad()
+    plot_calibrate()
+    plot_dist()
+    plot_grad()
     plot_onebody()
-    pass
 
 
 if __name__ == "__main__":

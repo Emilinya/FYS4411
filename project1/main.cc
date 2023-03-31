@@ -221,41 +221,43 @@ void multiOnebodyCalculator(double optimalTimeStep, size_t mcCycleCount, size_t 
     Timer timer;
     size_t cyclecount;
 
+    print("N=10");
     cyclecount = mcCycleCount / std::sqrt(10);
     onebodyCalculator<10>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, 0,
         args.stateSize, opt_alpha_list[0], args.beta, args.gamma, "data/onebody/N10_noJastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
+    std::cerr << "  " << timer.get_pretty() << "\n";
     timer.restart();
     onebodyCalculator<10>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, args.a,
         args.stateSize, opt_alpha_list[0], args.beta, args.gamma, "data/onebody/N10_Jastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
+    std::cerr << "  " << timer.get_pretty() << "\n";
     timer.restart();
 
+    print("\nN=50");
     cyclecount = mcCycleCount / std::sqrt(50);
     onebodyCalculator<50>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, 0,
         args.stateSize, opt_alpha_list[1], args.beta, args.gamma, "data/onebody/N50_noJastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
+    std::cerr << "  " << timer.get_pretty() << "\n";
     timer.restart();
     onebodyCalculator<50>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, args.a,
         args.stateSize, opt_alpha_list[1], args.beta, args.gamma, "data/onebody/N50_Jastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
+    std::cerr << "  " << timer.get_pretty() << "\n";
     timer.restart();
 
+    print("\nN=100");
     cyclecount = mcCycleCount / std::sqrt(100);
     onebodyCalculator<100>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, 0,
         args.stateSize, opt_alpha_list[2], args.beta, args.gamma, "data/onebody/N100_noJastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
+    std::cerr << "  " << timer.get_pretty() << "\n";
     timer.restart();
     onebodyCalculator<100>(
         MCMode::METHAS, optimalTimeStep, cyclecount, cyclecount / 100, walkercount, args.a,
         args.stateSize, opt_alpha_list[2], args.beta, args.gamma, "data/onebody/N100_Jastrow.dat");
-    std::cerr << timer.get_pretty() << "\n";
-    timer.restart();
+    std::cerr << "  " << timer.get_pretty() << "\n";
 }
 
 int main()
@@ -265,33 +267,33 @@ int main()
     size_t mcCycleCount = 1e4;
     size_t walkerCount = 8;
 
-    // multiCalibrator(alphaVec, MCMode::MET, mcCycleCount, 128);
-    // multiCalibrator(alphaVec, MCMode::METHAS, mcCycleCount, 128);
+    multiCalibrator(alphaVec, MCMode::MET, mcCycleCount, 128);
+    multiCalibrator(alphaVec, MCMode::METHAS, mcCycleCount, 128);
 
-    // double optimalStepSize = 4.125;
-    // multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
-    // multiSampler<2>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
-    // multiSampler<3>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    double optimalStepSize = 4.125;
+    multiSampler<1>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    multiSampler<2>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
+    multiSampler<3>(alphaVec, MCMode::MET, optimalStepSize, mcCycleCount, walkerCount);
 
     double optimalTimeStep = 0.48828;
-    // multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
-    // multiSampler<2>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
-    // multiSampler<3>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    multiSampler<1>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    multiSampler<2>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    multiSampler<3>(alphaVec, MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
 
-    // double maxSteps = 100;
-    // double sphericalLR = 0.02;
-    // gradMultiSampler(
-    //     0.4, sphericalLR, maxSteps, MCMode::METHAS,
-    //     optimalTimeStep, mcCycleCount, walkerCount);
-    // multiSampleSaver(MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
+    double maxSteps = 100;
+    double sphericalLR = 0.02;
+    gradMultiSampler(
+        0.4, sphericalLR, maxSteps, MCMode::METHAS,
+        optimalTimeStep, mcCycleCount, walkerCount);
+    multiSampleSaver(MCMode::METHAS, optimalTimeStep, mcCycleCount, walkerCount);
 
-    // double elipticalLR = 0.0004;
-    // elipticalMultiSampler(
-    //     0.5, elipticalLR, maxSteps, MCMode::METHAS,
-    //     optimalTimeStep, mcCycleCount * 10, walkerCount);
-    // elipticalMultiSampleSaver(MCMode::METHAS, optimalTimeStep, mcCycleCount * 10, walkerCount);
+    double elipticalLR = 0.0004;
+    elipticalMultiSampler(
+        0.5, elipticalLR, maxSteps, MCMode::METHAS,
+        optimalTimeStep, mcCycleCount * 10, walkerCount);
+    elipticalMultiSampleSaver(MCMode::METHAS, optimalTimeStep, mcCycleCount * 10, walkerCount);
 
-    multiOnebodyCalculator(optimalTimeStep, mcCycleCount*10, 128);
+    multiOnebodyCalculator(optimalTimeStep, mcCycleCount*100, walkerCount);
 
     return 0;
 }
