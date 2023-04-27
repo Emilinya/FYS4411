@@ -1,4 +1,5 @@
 import numpy as np 
+import glob
 
 # code from http://compphysics.github.io/ComputationalPhysics2/doc/pub/week9/html/week9.html
 def block(x):
@@ -38,3 +39,43 @@ def block(x):
     if (k >= d-1):
         print("Warning: Use more data")
     return mu, np.sqrt(s[k]/2**(d-k))
+
+if __name__ == "__main__":
+    folder_stats = {
+        "interactions": {
+            "NdMs": [("N2d2", [1, 2, 5, 10])],
+        },
+        "lrComp": {
+            "NdMs": [("N1d1", [10])],
+        },
+        "MComp": {
+            "NdMs": [
+                ("N1d1", [1, 2, 5, 10]),
+                ("N2d3", [2, 5])
+            ],
+        }
+    }
+
+    for folder, data in folder_stats.items():
+        for Nd, Ms in data["NdMs"]:
+            for mc_type in ["met", "methas"]:
+                if False and folder != "lrComp":
+                    with open(f"data/{folder}/{Nd}_{mc_type}_blockavg.dat", "w") as datafile:
+                        for M in Ms:
+                            print(f"{folder}/{Nd}M{M}_{mc_type}")
+                            blockE, blockStd = block(np.loadtxt(
+                                f"data/{folder}/{Nd}M{M}_{mc_type}_samples.dat"
+                            ).T.flatten())
+                            datafile.write(f"{M} {blockE} {blockStd}\n")
+                elif folder == "lrComp":
+                    for M in Ms:
+                        with open(f"data/lrComp/{Nd}M{M}_{mc_type}_blockavg.dat", "w") as datafile:
+                            for lr_file in glob.glob(f"data/lrComp/{Nd}M{M}*_{mc_type}.dat"):
+                                print(lr_file)
+                                if "blockavg" in lr_file:
+                                    continue
+                                lr = float(lr_file.split("=")[-1].split("_")[0])
+                                blockE, blockStd = block(np.loadtxt(lr_file).T.flatten())
+                                datafile.write(f"{lr} {blockE} {blockStd}\n")
+
+

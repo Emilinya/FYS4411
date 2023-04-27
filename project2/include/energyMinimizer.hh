@@ -8,13 +8,16 @@
 template <size_t N, size_t d, size_t M>
 std::pair<double, RBMParams<N, d, M>> minimizer(
     double learningRate, size_t maxSteps, const MCMode mode, double magnitude,
-    double sigma, bool interactions, size_t mcCycleCount, size_t walkerCount, std::string filename)
+    double sigma, bool interactions, size_t mcCycleCount, size_t walkerCount, std::string filename = "")
 {
     size_t cycleCount = mcCycleCount / 100;
     double cycleFactor = std::pow(100, 1. / (double)maxSteps);
 
-    std::ofstream dataFile = errcheckOpen(filename).value();
-    dataFile.precision(14);
+    std::ofstream dataFile;
+    if (filename != "") {
+        dataFile = errcheckOpen(filename).value();
+        dataFile.precision(14);
+    }
 
     RBMGrad<N, d, M> moment;
     double decay = 0.9;
@@ -29,7 +32,9 @@ std::pair<double, RBMParams<N, d, M>> minimizer(
         MCSamplerOut<N, d, M> out = mcSampler<N, d, M>(
             mode, magnitude, cycleCount, cycleCount / 100, walkerCount, sigma, interactions, params);
         fprintf(stderr, "\r  i=%ld, E=%.8f            ", i+1, out.E);
-        dataFile << i << " " << out.E << " " << out.stdE << "\n";
+        if (filename != "") {
+            dataFile << i << " " << out.E << " " << out.stdE << "\n";
+        }
 
         if (i > (maxSteps - 10) && out.E < minE)
         {
@@ -49,7 +54,9 @@ std::pair<double, RBMParams<N, d, M>> minimizer(
     }
     printf("\n  Minimum energy: %.8f\n", minE);
 
-    dataFile.close();
+    if (filename != "") {
+        dataFile.close();
+    }
 
     return {minE, bestParams};
 }

@@ -199,7 +199,7 @@ inline void print(T arg)
 template <typename T, typename... Rest>
 inline void print(T arg, Rest... rest)
 {
-    std::cerr << arg << ' ';
+    std::cerr << std::setprecision(std::numeric_limits<T>::digits10) << arg << ' ';
     print(rest...);
 }
 

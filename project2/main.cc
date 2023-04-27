@@ -56,14 +56,20 @@ void lrComp(
         modeStr = "methas";
     }
 
-    arma::vec lrs = arma::logspace(-3, 0, 10);
+    arma::vec lrs = arma::logspace(-3, 0, 20);
     for (double lr : lrs)
     {
         char buffer[50];
         snprintf(buffer, 50, "data/lrComp/N1d1M10_lr=%.5f_%s.dat", lr, modeStr.c_str());
         std::string filename(buffer);
-        minimizer<1, 1, 10>(
-            lr, maxSteps, mode, magnitude, sigma, false, mcCycleCount, walkerCount, filename);
+
+        auto [_, params] = minimizer<1, 1, 10>(
+            lr, maxSteps, mode, magnitude, sigma, false, mcCycleCount, walkerCount);
+
+        size_t samplerCycles = std::pow(2, 1 + (size_t)std::log2(10 * mcCycleCount));
+        mcSampler<1, 1, 10>(
+            mode, magnitude, samplerCycles, samplerCycles / 100,
+            walkerCount, sigma, false, params, true, filename);
     }
 }
 
@@ -83,14 +89,14 @@ void interactions(
 
     int main()
 {
-    // testRBMWF();
+    testRBMWF();
 
     double sigma = 1;
 
     size_t descentSteps = 1000;
     size_t walkerCount = 8;
     size_t mcCycles = 1e5;
-    double optimalLR = 0.00215;
+    double optimalLR = 0.0035;
 
     // safety exit - we don't want to override results
     exit(1);
