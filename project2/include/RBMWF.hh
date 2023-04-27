@@ -18,7 +18,7 @@ public:
         a_ = a;
         b_ = b;
         W_ = W;
-        sigma2_ = sigma * sigma;
+        isig2_ = 1.0 / (sigma * sigma);
         interactions_ = interactions;
     }
 
@@ -40,7 +40,7 @@ private:
     Vec<M> b_;
     Vec<N * d> a_;
     Mat<N * d, M> W_;
-    double sigma2_;
+    double isig2_;
     const MCMode mode_;
     bool interactions_;
     std::optional<RBMGrad<N, d, M>> logGrad_;
@@ -68,7 +68,7 @@ bool RBMWF<N, d, M>::setState(const ParticleSystem<N, d> &particleSystem)
         }
     }
 
-    bWxExp_ = arma::exp(b_ + (W_.t() * x_) / sigma2_);
+    bWxExp_ = arma::exp(b_ + (W_.t() * x_) * isig2_);
 
     return true;
 }
@@ -117,7 +117,7 @@ bool RBMWF<N, d, M>::pertubateState(size_t idx, double magnitude, Random &random
         diffSum += W_.row(j).t() * (oldPos[j] - newPos[j]);
         x_(idx * d + j) = newPos[j];
     }
-    bWxExp_ %= arma::exp(-diffSum / sigma2_);
+    bWxExp_ %= arma::exp(-diffSum * isig2_);
 
     // update system
     system.setAt(idx, particleCopy);
@@ -161,7 +161,7 @@ void RBMWF<N, d, M>::updateFrom(RBMWF<N, d, M> &waveFunction, size_t idx)
         diffSum += W_.row(j).t() * (oldPos[j] - newPos[j]);
         x_(idx * d + j) = newPos[j];
     }
-    bWxExp_ %= arma::exp(-diffSum / sigma2_);
+    bWxExp_ %= arma::exp(-diffSum * isig2_);
 
     // update system
     thisState.setAt(idx, otherState[idx]);
@@ -196,7 +196,7 @@ double RBMWF<N, d, M>::evaluate()
     }
 
     auto diff = x_ - a_;
-    double expTerm = std::exp(-arma::sum(diff % diff) / (2. * sigma2_));
+    double expTerm = std::exp(-arma::sum(diff % diff) * 0.5 * isig2_);
     double prodTerm = arma::prod(1.0 + bWxExp_);
 
     this->value_ = expTerm * prodTerm;
@@ -224,29 +224,25 @@ double RBMWF<N, d, M>::computeLocalEnergy()
     Vec<N * d> diff = a_ - x_;
     Vec<M> expOexp = bWxExp_ / (1.0 + bWxExp_);
 
-    double term1 = -0.5 / (sigma2_ * sigma2_) * arma::sum(diff % diff);
+    double isig4 = isig2_ * isig2_;
+
+    double term1 = -0.5 * isig4 * arma::sum(diff % diff);
     double term2 = 0.5 * omega2 * arma::sum(x_ % x_);
 
     double term3 = 0;
     for (size_t i = 0; i < N*d; i++)
     {
-        double iterm = 0;
-        for (size_t l = 0; l < M; l++)
-        {
-            double lterm1 = 2.0 * diff(i);
-            double lterm2 = W_(i, l) / (1.0 + bWxExp_(l));
-            double lterm3 = 0;
-            for (size_t m = 0; m < M; m++)
-            {
-                lterm3 += W_(i, m) * expOexp(m);
-            }
-            iterm += W_(i, l) * expOexp(l) * (lterm1 + lterm2 + lterm3);
-        }
-        term3 += iterm;
-    }
-    term3 *= -0.5 / (sigma2_ * sigma2_);
+        Vec<M> prodCols = W_.row(i).t() % expOexp;
 
-    double term4 = 0.5 * (double)(N * d) / sigma2_;
+        Vec<M> lterm1 = prodCols / bWxExp_;
+        double lterm2 = arma::sum(prodCols);
+        double lterm3 = 2.0 * diff(i);
+
+        term3 += arma::sum(prodCols % (lterm1 + lterm2 + lterm3));
+    }
+    term3 *= -0.5 * isig4;
+
+    double term4 = 0.5 * (double)(N * d) * isig2_;
 
     double term5 = 0;
     if (interactions_)
@@ -284,19 +280,17 @@ QForceMat<N, d> &RBMWF<N, d, M>::computeQForce()
     Vec<M> expOexp = bWxExp_ / (1.0 + bWxExp_);
 
     QForceMat<N, d> qForceMat;
-    for (size_t i = 0; i < N * d; i++)
+    for (size_t i = 0; i < N; i++)
     {
-        size_t fi = i / d;
-        size_t fj = i - d * fi;
-
-        double diff = (a_(i) - x_(i)) / sigma2_;
-        double sum = 0;
-        for (size_t j = 0; j < M; j++)
+        for (size_t j = 0; j < d; j++)
         {
-            sum += W_(i, j) / sigma2_ * expOexp(j);
+            size_t idx = i*d + j; 
+       
+            double diff = a_(idx) - x_(idx);
+            double sum = arma::sum(W_.row(idx).t() % expOexp);
+            qForceMat[i][j] = 2. * (diff + sum) * isig2_;
         }
-
-        qForceMat[fi][fj] = 2. * (diff + sum);
+        
     }
 
     this->qForce_ = qForceMat;
@@ -318,9 +312,9 @@ RBMGrad<N, d, M> &RBMWF<N, d, M>::computeLogGrad()
     }
 
     RBMGrad<N, d, M> grad;
-    grad.aGrad = (x_ - a_) / sigma2_;
+    grad.aGrad = (x_ - a_) * isig2_;
     grad.bGrad = bWxExp_ / (1.0 + bWxExp_);
-    grad.WGrad = (x_ / sigma2_) * grad.bGrad.t();
+    grad.WGrad = (x_ * isig2_) * grad.bGrad.t();
     
     logGrad_ = grad;
 
