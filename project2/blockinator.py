@@ -43,7 +43,7 @@ def block(x):
 if __name__ == "__main__":
     folder_stats = {
         "interactions": {
-            "NdMs": [("N2d2", [1, 2, 5, 10])],
+            "NdMs": [("N2d2", [1, 2, 5, 10, 20, 40])],
         },
         "lrComp": {
             "NdMs": [("N1d1", [10])],
@@ -51,15 +51,16 @@ if __name__ == "__main__":
         "MComp": {
             "NdMs": [
                 ("N1d1", [1, 2, 5, 10]),
-                ("N2d3", [2, 5])
+                ("N2d3", [1, 2, 5, 10])
             ],
         }
     }
 
+    exit()
     for folder, data in folder_stats.items():
         for Nd, Ms in data["NdMs"]:
             for mc_type in ["met", "methas"]:
-                if False and folder != "lrComp":
+                if folder != "lrComp":
                     with open(f"data/{folder}/{Nd}_{mc_type}_blockavg.dat", "w") as datafile:
                         for M in Ms:
                             print(f"{folder}/{Nd}M{M}_{mc_type}")
