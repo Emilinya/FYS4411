@@ -238,13 +238,13 @@ bool testValues2(Random &random) {
     return gotErr;
 }
 
-void testRBMWF()
+bool testRBMWF()
 {
     // arma::arma_rng::set_seed(123);
     // Random random(123);
     Random random;
 
-    testPerturbation(random);
-    testValues1(random);
-    testValues2(random);
+    int failedTests = testPerturbation(random) + testValues1(random) + testValues2(random);
+
+    return failedTests == 0;
 }

@@ -47,6 +47,8 @@ private:
 
     Vec<N * d> x_;
     Vec<M> bWxExp_;
+    Vec<M> xi_;
+    Vec<N * d> Wxi_;
 };
 
 template <size_t N, size_t d, size_t M>
@@ -69,6 +71,8 @@ bool RBMWF<N, d, M>::setState(const ParticleSystem<N, d> &particleSystem)
     }
 
     bWxExp_ = arma::exp(b_ + (W_.t() * x_) * isig2_);
+    xi_ = bWxExp_ / (1.0 + bWxExp_);
+    Wxi_ = W_ * xi_;
 
     return true;
 }
@@ -118,6 +122,8 @@ bool RBMWF<N, d, M>::pertubateState(size_t idx, double magnitude, Random &random
         x_(idx * d + j) = newPos[j];
     }
     bWxExp_ %= arma::exp(-diffSum * isig2_);
+    xi_ = bWxExp_ / (1.0 + bWxExp_);
+    Wxi_ = W_ * xi_;
 
     // update system
     system.setAt(idx, particleCopy);
@@ -162,6 +168,8 @@ void RBMWF<N, d, M>::updateFrom(RBMWF<N, d, M> &waveFunction, size_t idx)
         x_(idx * d + j) = newPos[j];
     }
     bWxExp_ %= arma::exp(-diffSum * isig2_);
+    xi_ = bWxExp_ / (1.0 + bWxExp_);
+    Wxi_ = W_ * xi_;
 
     // update system
     thisState.setAt(idx, otherState[idx]);
@@ -222,8 +230,6 @@ double RBMWF<N, d, M>::computeLocalEnergy()
     double omega2 = 1;
 
     Vec<N * d> diff = a_ - x_;
-    Vec<M> expOexp = bWxExp_ / (1.0 + bWxExp_);
-
     double isig4 = isig2_ * isig2_;
 
     double term1 = -0.5 * isig4 * arma::sum(diff % diff);
@@ -232,11 +238,11 @@ double RBMWF<N, d, M>::computeLocalEnergy()
     double term3 = 0;
     for (size_t i = 0; i < N*d; i++)
     {
-        Vec<M> prodCols = W_.row(i).t() % expOexp;
+        Vec<M> prodCols = W_.row(i).t() % xi_;
 
-        Vec<M> lterm1 = prodCols / bWxExp_;
-        double lterm2 = arma::sum(prodCols);
-        double lterm3 = 2.0 * diff(i);
+        double lterm1 = 2.0 * diff(i);
+        Vec<M> lterm2 = prodCols / bWxExp_;
+        double lterm3 = Wxi_(i);
 
         term3 += arma::sum(prodCols % (lterm1 + lterm2 + lterm3));
     }
@@ -277,20 +283,15 @@ QForceMat<N, d> &RBMWF<N, d, M>::computeQForce()
         throw std::runtime_error("RBMWF: Can't compute QForce before setting state");
     }
 
-    Vec<M> expOexp = bWxExp_ / (1.0 + bWxExp_);
+    Vec<N * d> qVec = a_ - x_ + Wxi_;
 
     QForceMat<N, d> qForceMat;
     for (size_t i = 0; i < N; i++)
     {
         for (size_t j = 0; j < d; j++)
         {
-            size_t idx = i*d + j; 
-       
-            double diff = a_(idx) - x_(idx);
-            double sum = arma::sum(W_.row(idx).t() % expOexp);
-            qForceMat[i][j] = 2. * (diff + sum) * isig2_;
+            qForceMat[i][j] = 2. * isig2_ * qVec(i * d + j);
         }
-        
     }
 
     this->qForce_ = qForceMat;
