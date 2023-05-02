@@ -227,30 +227,16 @@ double RBMWF<N, d, M>::computeLocalEnergy()
 
     ParticleSystem<N, d> &system = this->state_.value();
 
-    double omega2 = 1;
+    double omega2 = 1.0;
 
     Vec<N * d> diff = a_ - x_;
     double isig4 = isig2_ * isig2_;
 
-    double term1 = -0.5 * isig4 * arma::sum(diff % diff);
-    double term2 = 0.5 * omega2 * arma::sum(x_ % x_);
+    double term1 = isig2_ * (double)(N * d);
+    double term2 = -isig4 * arma::sum(diff % (diff + 2 * Wxi_) + (W_ % W_) * xi_);
+    double term3 = omega2 * arma::dot(x_, x_);
 
-    double term3 = 0;
-    for (size_t i = 0; i < N*d; i++)
-    {
-        Vec<M> prodCols = W_.row(i).t() % xi_;
-
-        double lterm1 = 2.0 * diff(i);
-        Vec<M> lterm2 = prodCols / bWxExp_;
-        double lterm3 = Wxi_(i);
-
-        term3 += arma::sum(prodCols % (lterm1 + lterm2 + lterm3));
-    }
-    term3 *= -0.5 * isig4;
-
-    double term4 = 0.5 * (double)(N * d) * isig2_;
-
-    double term5 = 0;
+    double term4 = 0.0;
     if (interactions_)
     {
         for (size_t i = 0; i < N; i++)
@@ -259,13 +245,12 @@ double RBMWF<N, d, M>::computeLocalEnergy()
             for (size_t j = i+1; j < N; j++)
             {
                 auto &partj = system[j];
-                term5 += 1.0 / (parti.distanceTo(partj));
+                term4 += 1.0 / (parti.distanceTo(partj));
             }
         }
     }
 
-    this->localEnergy_ = term1 + term2 + term3 + term4 + term5;
-    
+    this->localEnergy_ = 0.5 * (term1 + term2 + term3) + term4;
 
     return this->localEnergy_.value();
 }
@@ -313,10 +298,10 @@ RBMGrad<N, d, M> &RBMWF<N, d, M>::computeLogGrad()
     }
 
     RBMGrad<N, d, M> grad;
-    grad.aGrad = (x_ - a_) * isig2_;
-    grad.bGrad = bWxExp_ / (1.0 + bWxExp_);
-    grad.WGrad = (x_ * isig2_) * grad.bGrad.t();
-    
+    grad.aGrad = isig2_ * (x_ - a_);
+    grad.bGrad = xi_;
+    grad.WGrad = isig2_ * x_ * xi_.t();
+
     logGrad_ = grad;
 
     return logGrad_.value();
