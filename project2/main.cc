@@ -23,8 +23,8 @@ void minAndSample(
     snprintf(buffer, 50, "data/%s/N%ldd%ldM%ld_%s", folder.c_str(), N, d, M, modeStr.c_str());
     std::string str(buffer);
 
-    auto params = minimizer<N, d, M>(
-        learningRate, maxSteps, mode, magnitude, sigma, interactions, mcCycleCount, walkerCount, str + "_grad.dat");
+    auto params = metaMinimizer<N, d, M>(
+        8, learningRate, maxSteps, mode, magnitude, sigma, interactions, mcCycleCount, walkerCount, str + "_grad.dat");
 
     size_t samplerCycles = std::pow(2, 1 + (size_t)std::log2(mcCycleCount));
     mcSampler<N, d, M>(
@@ -65,8 +65,8 @@ void lrComp(
         snprintf(buffer, 50, "data/lrComp/N1d1M10_lr=%.5f_%s.dat", lr, modeStr.c_str());
         std::string filename(buffer);
 
-        auto params = minimizer<1, 1, 10>(
-            lr, maxSteps, mode, magnitude, sigma, false, mcCycleCount, walkerCount);
+        auto params = metaMinimizer<1, 1, 10>(
+            8, lr, maxSteps, mode, magnitude, sigma, false, mcCycleCount, walkerCount);
 
         size_t samplerCycles = std::pow(2, 1 + (size_t)std::log2(mcCycleCount));
         mcSampler<1, 1, 10>(
@@ -88,8 +88,6 @@ void interactions(
     minAndSample<2, 2, 10>(
         learningRate, maxSteps, mode, magnitude, sigma, true, mcCycleCount, walkerCount, "interactions");
     minAndSample<2, 2, 20>(
-        learningRate, maxSteps, mode, magnitude, sigma, true, mcCycleCount, walkerCount, "interactions");
-    minAndSample<2, 2, 40>(
         learningRate, maxSteps, mode, magnitude, sigma, true, mcCycleCount, walkerCount, "interactions");
 }
 
