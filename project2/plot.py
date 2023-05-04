@@ -1,80 +1,65 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from blockinator import block
 
 
-def plot_w_std(
-        ax, xs, ys, stds, label, color, alpha=0.4,
-        markersize=None, marker=".", linestyle="-"):
-    if markersize is None:
-        if len(xs) > 1000:
-            markersize = 4
-        elif len(xs) > 100:
-            markersize = 8
-        else:
-            markersize = 12
-    ax.fill_between(
-        xs, ys - stds, ys + stds,
-        color=color, alpha=alpha, edgecolor=color
-    )
-    ax.plot(
-        xs, ys, color=color, label=label,
-        markersize=markersize, linestyle=linestyle,
-        marker=marker
-    )
+def plot_lrs(N, d, M, folder):
+    met_lrs, met_blockEs, met_blockEstds = np.loadtxt(
+        f"data/{folder}/N{N}d{d}M{M}_met_blockavg.dat").T
+    methas_lrs, methas_blockEs, methas_blockEstds = np.loadtxt(
+        f"data/{folder}/N{N}d{d}M{M}_methas_blockavg.dat").T
 
-
-def plot_lrs(N, d, M, mc_type, folder):
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    lrs, blockEs, blockEstds = np.loadtxt(
-        f"data/{folder}/N{N}d{d}M{M}_{mc_type}_blockavg.dat").T
+    optimal_lr = 0.30392
+    plt.axvline(optimal_lr, color="k", linestyle="--")
+    plt.text(optimal_lr*1.05, 10, f"{optimal_lr}")
 
     analytical = 0.5 * N * d
-    plot_w_std(
-        plt, lrs, np.abs(blockEs - analytical),
-        blockEstds, label="", color=colors[0]
+    plt.errorbar(
+        met_lrs, np.abs(met_blockEs - analytical),
+        met_blockEstds, fmt=".--", label="Metropolis"
     )
-    plt.axvline(0.30392)
-    # print(lrs[np.argmin(blockEs)])
+    plt.errorbar(
+        methas_lrs, np.abs(methas_blockEs - analytical),
+        methas_blockEstds, fmt=".--", label="Metropolis-Hastings"
+    )
+    plt.legend()
+
 
     plt.yscale("log")
     plt.xscale("log")
 
     plt.xlabel("Learning rate []")
     plt.ylabel("$|E_{{ana}} - E_{{num}}|$ [a.u.]")
-    plt.savefig(f"figures/{folder}_d{d}N{N}M{M}_{mc_type}.png", dpi=200, bbox_inches='tight')
+    plt.savefig(f"figures/{folder}_d{d}N{N}M{M}.png", dpi=200, bbox_inches='tight')
     plt.clf()
 
 
 def plot_Ms(N, d, mc_type, folder):
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    max_end = 0
-    min_end = float("Infinity")
 
-    Ms, blockEs, _ = np.loadtxt(
+    avg_Es = []
+    std_Es = []
+
+    Ms, _, _ = np.loadtxt(
         f"data/{folder}/N{N}d{d}_{mc_type}_blockavg.dat"
     ).T
-    for M, blockE, c in zip(Ms[::-1], blockEs[::-1], colors):
-        idx, E, _ = np.loadtxt(
+    for M, c in zip(Ms[::-1], colors):
+        idx, E, Estd = np.loadtxt(
             f"data/{folder}/N{N}d{d}M{int(M)}_{mc_type}_grad.dat"
         ).T
+        # plt.errorbar(idx, E, Estd, label=f"M={M}", color=c)
         plt.plot(idx, E, label=f"M={M}", color=c)
-        plt.axhline(blockE, linestyle="--", color=c, linewidth=1)
 
-        if M < 20:
-            max_end = max(max_end, blockE)
-            min_end = min(min_end, blockE)
+        avg_Es.append(np.mean(E[50:]))
+        std_Es.append(np.std(E[50:]))
+    avg_E = np.average(avg_Es, weights=1/(Ms[::-1]**2))
+    std_E = np.average(std_Es, weights=1/(Ms[::-1]**2))
 
     true_val = 0.5 * N * d
     if folder == "interactions":
         true_val = 3
     plt.axhline(true_val, linestyle="--", color="k", label="analytic")
 
-    max_end = max(max_end, true_val)
-    min_end = min(min_end, true_val)
-
-    padd = (max_end - min_end)
-    plt.ylim(min_end - padd, max_end + padd)
+    plt.ylim(min(true_val, avg_E) - 1.1*std_E, avg_E + 1.1*std_E)
     plt.legend()
 
     plt.xlabel("Step []")
@@ -95,42 +80,27 @@ def plot_comp(N, d, folder):
     if folder == "interactions":
         true_val = 3
 
-    met_diff = np.abs(metE - true_val)
-    methas_diff = np.abs(methasE - true_val)
-
     plt.errorbar(
-        Ms, met_diff, metEstd,
+        Ms, np.abs(metE - true_val), metEstd,
         fmt=".--", label="Metropolis"
     )
     plt.errorbar(
-        Ms, methas_diff, methasEstd,
+        Ms, np.abs(methasE - true_val), methasEstd,
         fmt=".--", label="Metropolis-Hastings"
     )
 
-    combimax_diff = np.array([max(a, b) for a, b in zip(met_diff, methas_diff)])
-    combimin_diff = np.array([min(a, b) for a, b in zip(met_diff, methas_diff)])
-    
-    sort_idxs = np.argsort(combimax_diff)
-    sortmax = combimax_diff[sort_idxs]
-    sortmin = combimin_diff[sort_idxs]
-
-    do_lim = False
-    if sortmax[-1] > 10*sortmax[-2]:
-        do_lim = True
-        sortmax = sortmax[:-1]
-
-    if sortmax[-1] > 10*sortmax[0]:
+    # Hardcoding, yay!
+    if (N, d) == (2, 2):
+        plt.ylim(0.09, 0.31)
+    else:
         plt.yscale("log")
+
     plt.xscale("log")
     plt.xticks(Ms, [int(M) for M in Ms])
 
-    if do_lim:
-        diff = sortmax[-1] - sortmin[0]
-        plt.ylim(sortmin[0] - 0.1*diff, sortmax[-1] + 0.1*diff)
-
     plt.legend()
     plt.xlabel("M []")
-    plt.ylabel("$E_{{num}} - E_{{ana}}$ [a.u.]")
+    plt.ylabel("$|E_{{num}} - E_{{ana}}|$ [a.u.]")
     plt.savefig(f"figures/{folder}_d{d}N{N}_comp.png", dpi=200, bbox_inches='tight')
     plt.clf()
 
@@ -138,8 +108,7 @@ def plot_comp(N, d, folder):
 if __name__ == "__main__":
     plt.rcParams['font.size'] = '14'
     
-    plot_lrs(1, 1, 10, "met", "lrComp")
-    plot_lrs(1, 1, 10, "methas", "lrComp")
+    plot_lrs(1, 1, 10, "lrComp")
 
     plot_Ms(1, 1, "met", "MComp")
     plot_Ms(1, 1, "methas", "MComp")

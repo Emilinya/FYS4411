@@ -43,7 +43,7 @@ def block(x):
 if __name__ == "__main__":
     folder_stats = {
         "interactions": {
-            "NdMs": [("N2d2", [1, 2, 5, 10, 20, 40])],
+            "NdMs": [("N2d2", [1, 2, 5, 10, 20])],
         },
         "lrComp": {
             "NdMs": [("N1d1", [10])],
@@ -56,6 +56,7 @@ if __name__ == "__main__":
         }
     }
 
+    # safety exit
     exit()
     for folder, data in folder_stats.items():
         for Nd, Ms in data["NdMs"]:
