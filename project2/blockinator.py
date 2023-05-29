@@ -56,8 +56,6 @@ if __name__ == "__main__":
         }
     }
 
-    # safety exit
-    exit()
     for folder, data in folder_stats.items():
         for Nd, Ms in data["NdMs"]:
             for mc_type in ["met", "methas"]:

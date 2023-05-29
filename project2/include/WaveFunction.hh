@@ -8,10 +8,10 @@
 #include "Particle.hh"
 #include "ParticleSystem.hh"
 
-// The wavef unction class is more complicated than one might expect. Instead of just
-// having functions that take in a particle system, the wavef unction class has ownership over
+// The wave-function class is more complicated than one might expect. Instead of just
+// having functions that take in a particle system, the wave-function class has ownership over
 // an internal state. This is to enable efficient perturbation, when calculating a value from
-// a particle system, the wavef unction copies the system and stores the computed value. You can
+// a particle system, the wave-function copies the system and stores the computed value. You can
 // then perturbate the stored particle system (called the state) using the pertubateState
 // function, which will then efficiently calculate new values based on the stored values 
 template <size_t N, size_t d>

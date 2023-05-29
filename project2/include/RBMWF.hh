@@ -7,6 +7,7 @@
 #include "Particle.hh"
 #include "WaveFunction.hh"
 
+// Restricted Boltzman Machine wave-function
 template <size_t N, size_t d, size_t M>
 class RBMWF : public WaveFunction<N, d>
 {
@@ -61,6 +62,7 @@ bool RBMWF<N, d, M>::setState(const ParticleSystem<N, d> &particleSystem)
     this->qForce_.reset();
     this->localEnergy_.reset();
 
+    // x is a vector containing all the positions sequentially
     for (size_t i = 0; i < N; i++)
     {
         auto &pos = particleSystem[i].getPosition();
@@ -70,6 +72,7 @@ bool RBMWF<N, d, M>::setState(const ParticleSystem<N, d> &particleSystem)
         }
     }
 
+    // create lookup tables of important quantities
     bWxExp_ = arma::exp(b_ + (W_.t() * x_) * isig2_);
     xi_ = bWxExp_ / (1.0 + bWxExp_);
     Wxi_ = W_ * xi_;

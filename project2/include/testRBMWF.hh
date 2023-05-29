@@ -4,6 +4,7 @@
 
 #define EQUALS(a, b) std::abs(a - b)/std::abs(a) < 1e-14
 
+// perturbating the WF computes quantities more efficiently, but might be a source of bugs 
 bool testPerturbation(Random &random)
 {
     bool gotErr = false;
@@ -79,6 +80,7 @@ bool testPerturbation(Random &random)
     return gotErr;
 }
 
+// compare WF to analytical values when a=b=W=0
 bool testValues1(Random &random)
 {
     bool gotErr = false;
@@ -146,6 +148,7 @@ bool testValues1(Random &random)
     return gotErr;
 }
 
+// compare WF to analytical values when N=d=M=1
 bool testValues2(Random &random) {
     bool gotErr = false;
 
@@ -238,10 +241,9 @@ bool testValues2(Random &random) {
     return gotErr;
 }
 
+// function to see if our RBM wave-function implementaiton works
 bool testRBMWF()
 {
-    // arma::arma_rng::set_seed(123);
-    // Random random(123);
     Random random;
 
     int failedTests = testPerturbation(random) + testValues1(random) + testValues2(random);

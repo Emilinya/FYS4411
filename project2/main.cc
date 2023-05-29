@@ -102,9 +102,6 @@ void interactions(
     size_t mcCycles = 5e5;
     double optimalLR = 0.30392;
 
-    // safety exit - we don't want to override results
-    exit(1);
-
     double optimalStepsize = 4.125;
     lrComp(descentSteps, MCMode::MET, optimalStepsize, sigma, mcCycles, walkerCount);
     MComp(optimalLR, descentSteps, MCMode::MET, optimalStepsize, sigma, mcCycles, walkerCount);
